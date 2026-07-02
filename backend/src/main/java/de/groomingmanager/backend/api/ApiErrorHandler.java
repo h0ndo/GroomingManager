@@ -10,6 +10,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiErrorHandler {
@@ -40,6 +41,17 @@ public class ApiErrorHandler {
     problem.setDetail("You do not have permission to access this resource.");
 
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  ResponseEntity<ProblemDetail> handleResponseStatus(ResponseStatusException exception) {
+    ProblemDetail problem = ProblemDetail.forStatus(exception.getStatusCode());
+    problem.setTitle(exception.getStatusCode().toString());
+    if (exception.getReason() != null && !exception.getReason().isBlank()) {
+      problem.setDetail(exception.getReason());
+    }
+
+    return ResponseEntity.status(exception.getStatusCode()).body(problem);
   }
 
   @ExceptionHandler(Exception.class)

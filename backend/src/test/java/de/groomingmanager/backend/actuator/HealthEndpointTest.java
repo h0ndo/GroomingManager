@@ -2,11 +2,15 @@ package de.groomingmanager.backend.actuator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import de.groomingmanager.backend.repository.AppointmentRepository;
+import de.groomingmanager.backend.repository.PetRepository;
+import de.groomingmanager.backend.repository.ServiceOfferingRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -19,6 +23,10 @@ import org.springframework.http.ResponseEntity;
 class HealthEndpointTest {
 
   @Autowired private TestRestTemplate restTemplate;
+
+  @MockitoBean private AppointmentRepository appointmentRepository;
+  @MockitoBean private PetRepository petRepository;
+  @MockitoBean private ServiceOfferingRepository serviceOfferingRepository;
 
   @Test
   void exposesLivenessProbe() {
