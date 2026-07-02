@@ -1,0 +1,112 @@
+# Local development proxy/dependencies.
+#
+# Use this when Angular and Spring Boot run on the host, but PostgreSQL,
+# Keycloak and Flyway should still run reproducibly in Docker.
+#
+# Start local dependencies + proxy:
+#   docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml up -d
+#
+# Then run locally:
+#   cd backend && ./mvnw spring-boot:run
+#   cd frontend && npm start
+#
+# Open:
+#   http://localhost:3000
+
+services:
+  local-proxy:
+    image: nginx:1.27-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-grooming-manager-local}_proxy
+    restart: unless-stopped
+    depends_on:
+      - keycloak
+    ports:
+      - "${LOCAL_DEV_HTTP_PORT:-3000}:80"
+    volumes:
+      - ./nginx/local-dev/templates:/etc/nginx/templates:ro
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      LOCAL_FRONTEND_UPSTREAM: ${LOCAL_FRONTEND_UPSTREAM:-host.docker.internal:4200}
+      LOCAL_BACKEND_UPSTREAM: ${LOCAL_BACKEND_UPSTREAM:-host.docker.internal:8080}
+    networks:
+      - internal
+
+  migrate:
+    image: ${FLYWAY_IMAGE:-flyway/flyway:10-alpine}
+    container_name: ${COMPOSE_PROJECT_NAME:-grooming-manager-local}_migrate
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - -connectRetries=60
+      - -baselineOnMigrate=true
+      - migrate
+    environment:
+      FLYWAY_URL: ${FLYWAY_URL:-jdbc:postgresql://db/grooming_manager}
+      FLYWAY_USER: ${POSTGRES_USER:-grooming_manager}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_SCHEMAS: public
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./migrations:/flyway/sql:ro
+    networks:
+      - internal
+
+  keycloak:
+    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:latest}
+    container_name: ${COMPOSE_PROJECT_NAME:-grooming-manager-local}_keycloak
+    restart: unless-stopped
+    command: ["start-dev"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL_HOST: db
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DB:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:3000/auth}
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    expose:
+      - "8080"
+    networks:
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-grooming-manager-local}_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-grooming_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-grooming_manager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_DB: ${KEYCLOAK_DB:-keycloak}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    ports:
+      - "${LOCAL_DEV_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-grooming_manager} -d ${POSTGRES_DB:-grooming_manager}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+volumes:
+  local_postgres_data:
+
+networks:
+  internal:

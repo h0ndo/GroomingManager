@@ -1,0 +1,67 @@
+# E2E overlay: runs frontend and backend as Compose services so the local proxy
+# can resolve them through Docker DNS. Use together with docker-compose.local-dev.yml.
+#
+# Start app stack for host-run Playwright tests:
+#   docker compose --env-file deploy/.env.local \
+#     -f deploy/docker-compose.local-dev.yml \
+#     -f deploy/docker-compose.e2e.yml \
+#     --profile app up -d --build
+#
+# Then run from host:
+#   cd playwright && npm test
+
+services:
+  local-proxy:
+    depends_on:
+      keycloak:
+        condition: service_started
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    environment:
+      LOCAL_FRONTEND_UPSTREAM: frontend:80
+      LOCAL_BACKEND_UPSTREAM: backend:8080
+
+  frontend:
+    profiles: ["app", "e2e"]
+    build:
+      context: ../frontend
+    image: ${FRONTEND_IMAGE:-grooming-manager-frontend:local}
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - internal
+
+  backend:
+    profiles: ["app", "e2e"]
+    build:
+      context: ../backend
+    image: ${BACKEND_IMAGE:-grooming-manager-backend:local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_started
+    environment:
+      SERVER_PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-grooming_manager}
+      DB_USER: ${POSTGRES_USER:-grooming_manager}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_FLYWAY_ENABLED: "false"
+      OIDC_JWK_SET_URI: http://keycloak:8080/auth/realms/${KEYCLOAK_REALM:-grooming-manager}/protocol/openid-connect/certs
+      APP_CORS_ALLOWED_ORIGINS: ${APP_PUBLIC_URL:-http://localhost:3000}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://llm:8080}
+      LLM_MODEL: ${LLM_MODEL:-gemma-3-4b-it-qat-q4_0}
+      LLM_VISION_ENABLED: ${LLM_VISION_ENABLED:-true}
+    expose:
+      - "8080"
+    networks:
+      - internal

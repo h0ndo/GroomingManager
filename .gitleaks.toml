@@ -1,0 +1,15 @@
+[allowlist]
+description = "Ignore local/generated files that are not committed and may contain developer secrets. CI runs on a clean checkout; these entries make local scans practical too."
+paths = [
+  '''(^|/)\.git/''',
+  '''(^|/)\.terraform/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''(^|/)\.angular/''',
+  '''(^|/)coverage/''',
+  '''(^|/)sbom/''',
+  '''(^|/)test-results/''',
+  '''deploy/\.env\.local$''',
+  '''deploy/\.env$''',
+  '''infra/keycloak/terraform\.local\.auto\.tfvars$''',
+]

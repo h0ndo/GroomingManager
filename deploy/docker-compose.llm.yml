@@ -1,0 +1,54 @@
+# Optionaler lokaler Vision-LLM-Service für GroomingManager.
+#
+# Nutzung produktionsnah:
+#   docker compose --env-file deploy/.env -f deploy/docker-compose.yml -f deploy/docker-compose.llm.yml --profile llm up -d --build
+#
+# Nutzung lokale Entwicklung:
+#   docker compose --env-file deploy/.env.local -f deploy/docker-compose.local-dev.yml -f deploy/docker-compose.llm.yml --profile llm up -d
+#   Backend lokal mit LLM_BASE_URL=http://localhost:8081 starten.
+#
+# Voraussetzung für GPU:
+#   NVIDIA GPU + aktueller Treiber + Docker Desktop/WSL2 GPU Support.
+
+services:
+  llm:
+    image: ${LLM_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    container_name: ${COMPOSE_PROJECT_NAME:-grooming-manager}_llm
+    profiles:
+      - llm
+    restart: unless-stopped
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --hf-repo
+      - ${LLM_HF_REPO:-google/gemma-3-4b-it-qat-q4_0-gguf}
+      - --hf-file
+      - ${LLM_HF_FILE:-gemma-3-4b-it-q4_0.gguf}
+      - --ctx-size
+      - ${LLM_CONTEXT_SIZE:-4096}
+      - --n-gpu-layers
+      - ${LLM_GPU_LAYERS:-999}
+    environment:
+      HF_HOME: /models/huggingface
+      # Gemma-Modelle sind auf Hugging Face lizenz-/zugriffsbeschränkt.
+      # In deploy/.env lokal setzen, aber nie committen.
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - llm_models:/models
+    ports:
+      # Nur für lokale Entwicklung/Tests. In Produktion sollte der LLM-Service intern bleiben.
+      - "${LLM_HOST_PORT:-8081}:8080"
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  llm_models:

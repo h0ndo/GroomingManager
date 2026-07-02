@@ -1,0 +1,323 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl tar
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL -o /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          sudo tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+          sudo chmod +x /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Security secret scan
+        run: |
+          gitleaks detect --source . --no-git --redact --no-banner --verbose
+
+      - name: Validate docker-compose files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_services() {
+            local label="$1"
+            local services="$2"
+            shift 2
+            for service in "$@"; do
+              grep -qx "$service" <<< "$services" || {
+                echo "$label: missing service $service"
+                exit 1
+              }
+            done
+            echo "OK $label"
+          }
+
+          services="$(docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml config --services)"
+          require_services "deploy/docker-compose.yml" "$services" proxy frontend backend migrate keycloak db
+
+          services="$(docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml config --services)"
+          require_services "deploy/docker-compose.local-dev.yml" "$services" local-proxy migrate keycloak db
+
+          services="$(docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml -f deploy/docker-compose.llm.yml --profile llm config --services)"
+          require_services "deploy/docker-compose.yml + llm" "$services" proxy frontend backend migrate keycloak db llm
+
+          services="$(docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml -f deploy/docker-compose.e2e.yml --profile app config --services)"
+          require_services "local-dev + e2e" "$services" local-proxy frontend backend migrate keycloak db
+
+      - name: Validate required deployment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            .github/workflows/ci.yml
+            .github/workflows/sbom.yml
+            .gitleaks.toml
+            deploy/docker-compose.yml
+            deploy/docker-compose.local-dev.yml
+            deploy/docker-compose.llm.yml
+            deploy/docker-compose.e2e.yml
+            deploy/.env.local.example
+            deploy/nginx/templates/default.conf.template
+            deploy/nginx/local-dev/templates/default.conf.template
+            deploy/migrations/V1__baseline.sql
+            backend/pom.xml
+            backend/Dockerfile
+            scripts/generate-sbom.sh
+            frontend/package.json
+            frontend/Dockerfile
+            frontend/eslint.config.mjs
+            frontend/stylelint.config.mjs
+            playwright/package.json
+            playwright/playwright.config.ts
+            playwright/tests/keycloak-login.spec.ts
+            infra/keycloak/main.tf
+            docs/backend-quality.md
+            docs/backup-restore.md
+            docs/error-handling.md
+            docs/env-matrix.md
+            docs/adr/0001-keycloak-identity-provider.md
+            docs/adr/0002-flyway-database-migrations.md
+            docs/adr/0004-local-vision-llm.md
+            docs/adr/0005-github-ci-cd.md
+            docs/frontend.md
+            docs/healthchecks.md
+            docs/llm.md
+            docs/migrations.md
+            docs/usecases.md
+            docs/security.md
+            docs/sbom.md
+          )
+
+          for file in "${files[@]}"; do
+            test -f "$file" || {
+              echo "missing required file: $file"
+              exit 1
+            }
+          done
+
+      - name: Validate Flyway migration conventions
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          migrations=(deploy/migrations/*.sql)
+          test -f docs/migrations.md
+          test -f deploy/migrations/V1__baseline.sql
+          test "${#migrations[@]}" -gt 0
+
+          expected=1
+          for migration in "${migrations[@]}"; do
+            name="$(basename "$migration")"
+            if [[ ! "$name" =~ ^V([1-9][0-9]*)__[a-z0-9_]+\.sql$ ]]; then
+              echo "invalid Flyway migration name: $name"
+              exit 1
+            fi
+            version="${BASH_REMATCH[1]}"
+            if [[ "$version" -ne "$expected" ]]; then
+              echo "Flyway versions must be sequential: expected V$expected but got V$version ($name)"
+              exit 1
+            fi
+            expected=$((expected + 1))
+          done
+          echo "OK ${#migrations[@]} Flyway migration(s)"
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Validate backend tests and formatting
+        run: |
+          cd backend
+          mvn -B test spotless:check
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Validate frontend linting
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Validate frontend build
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Frontend dependency audit
+        run: |
+          cd frontend
+          npm audit --audit-level=high
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Start E2E Docker Compose stack
+        shell: bash
+        run: |
+          docker compose \
+            --env-file deploy/.env.local.example \
+            -f deploy/docker-compose.local-dev.yml \
+            -f deploy/docker-compose.e2e.yml \
+            --profile app \
+            up -d --build
+
+      - name: Wait for Keycloak and backend readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wait_for_url() {
+            local label="$1"
+            local url="$2"
+            local log_services="$3"
+
+            for i in {1..120}; do
+              if curl -fsS "$url" >/dev/null; then
+                echo "$label ready"
+                return 0
+              fi
+              sleep 2
+            done
+
+            echo "$label did not become ready: $url" >&2
+            docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml -f deploy/docker-compose.e2e.yml --profile app ps
+            docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml -f deploy/docker-compose.e2e.yml --profile app logs --tail=200 $log_services
+            return 1
+          }
+
+          # Keycloak can return connection-refused through Nginx while it is still booting.
+          # The master realm discovery document is a stable signal that the HTTP app port is ready.
+          wait_for_url "Keycloak" "http://localhost:3000/auth/realms/master/.well-known/openid-configuration" "keycloak local-proxy"
+          wait_for_url "Backend" "http://localhost:3000/actuator/health/readiness" "backend local-proxy"
+
+      - name: Configure Keycloak realm and E2E users
+        shell: bash
+        env:
+          TF_VAR_keycloak_url: http://localhost:3000/auth
+          TF_VAR_keycloak_admin_username: admin
+          TF_VAR_keycloak_admin_password: admin
+          TF_VAR_realm: grooming-manager
+          TF_VAR_app_url: http://localhost:3000
+          TF_VAR_oidc_client_id: grooming-manager-app
+          TF_VAR_test_users_enabled: 'true'
+        run: |
+          cd infra/keycloak
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
+
+      - name: Wait for configured Keycloak realm
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            if curl -fsS http://localhost:3000/auth/realms/grooming-manager/.well-known/openid-configuration >/dev/null; then
+              echo "GroomingManager realm ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "GroomingManager realm did not become ready" >&2
+          exit 1
+
+      - name: Run Playwright E2E tests
+        shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+        run: |
+          cd playwright
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright/playwright-report
+          if-no-files-found: ignore
+
+      - name: Print Docker Compose logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          docker compose \
+            --env-file deploy/.env.local.example \
+            -f deploy/docker-compose.local-dev.yml \
+            -f deploy/docker-compose.e2e.yml \
+            --profile app \
+            ps
+          docker compose \
+            --env-file deploy/.env.local.example \
+            -f deploy/docker-compose.local-dev.yml \
+            -f deploy/docker-compose.e2e.yml \
+            --profile app \
+            logs --tail=300
+
+      - name: Stop E2E Docker Compose stack
+        if: always()
+        shell: bash
+        run: |
+          docker compose \
+            --env-file deploy/.env.local.example \
+            -f deploy/docker-compose.local-dev.yml \
+            -f deploy/docker-compose.e2e.yml \
+            --profile app \
+            down -v --remove-orphans

@@ -1,0 +1,54 @@
+server {
+    listen 80;
+    server_name ${APP_DOMAIN};
+
+    server_tokens off;
+    client_max_body_size 20m;
+
+    # Keycloak stays in Docker for local development.
+    location /auth/ {
+        proxy_pass http://keycloak:8080/auth/;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+
+    # Spring Boot runs locally on the host.
+    location /api/ {
+        proxy_pass http://${LOCAL_BACKEND_UPSTREAM}/api/;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+
+    location /actuator/ {
+        proxy_pass http://${LOCAL_BACKEND_UPSTREAM}/actuator/;
+        proxy_http_version 1.1;
+    }
+
+    # Angular dev server runs locally on the host.
+    # WebSocket headers keep Angular HMR/live reload working.
+    location / {
+        proxy_pass http://${LOCAL_FRONTEND_UPSTREAM};
+        proxy_http_version 1.1;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+}

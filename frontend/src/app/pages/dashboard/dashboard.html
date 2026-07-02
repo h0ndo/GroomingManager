@@ -1,0 +1,49 @@
+<section class="dashboard">
+  <header>
+    <div>
+      <p class="eyebrow">Dashboard</p>
+      <h1>Willkommen im GroomingManager</h1>
+    </div>
+    @if (auth.isAuthenticated()) {
+      <button pButton type="button" severity="secondary" (click)="auth.logout()">
+        <span pButtonIcon class="pi pi-sign-out"></span>
+        <span pButtonLabel>Abmelden</span>
+      </button>
+    } @else {
+      <button pButton type="button" (click)="auth.login()">
+        <span pButtonIcon class="pi pi-sign-in"></span>
+        <span pButtonLabel>Anmelden</span>
+      </button>
+    }
+  </header>
+
+  <p-card styleClass="role-card">
+    <ng-template pTemplate="title">Rollenspezifischer Bereich</ng-template>
+    <ng-template pTemplate="subtitle">
+      <p-tag severity="info" [value]="roleLabel()"></p-tag>
+    </ng-template>
+
+    <p>Du bist als {{ roleLabel() }} eingeloggt.</p>
+    <p class="muted">Diese Seite ist der Platzhalter für die spätere rollenspezifische Startseite.</p>
+
+    <nav class="role-links" aria-label="Rollenspezifische Bereiche">
+      @for (link of roleLinks(); track link.route) {
+        @if (link.visible) {
+          <a pButton [routerLink]="link.route" severity="secondary">
+            <span pButtonIcon class="pi {{ link.icon }}"></span>
+            <span pButtonLabel>{{ link.label }}</span>
+          </a>
+        }
+      }
+    </nav>
+  </p-card>
+
+  <div class="grid">
+    <p-card header="Backend Status">
+      <pre>{{ status() | json }}</pre>
+    </p-card>
+    <p-card header="Angemeldeter Benutzer">
+      <pre>{{ me() ?? auth.identityClaims() | json }}</pre>
+    </p-card>
+  </div>
+</section>

@@ -1,0 +1,74 @@
+name: sbom
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  frontend-npm-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate frontend npm SBOM
+        run: |
+          mkdir -p sbom
+          cd frontend
+          npm ci
+          npx -y @cyclonedx/cyclonedx-npm@5.0.0 \
+            --package-lock-only \
+            --output-reproducible \
+            --output-format JSON \
+            --output-file ../sbom/frontend-npm.cdx.json
+          test -s ../sbom/frontend-npm.cdx.json
+          ls -lh ../sbom/frontend-npm.cdx.json
+
+      - name: Upload frontend SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-npm-sbom
+          path: sbom/frontend-npm.cdx.json
+          if-no-files-found: error
+
+  backend-maven-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Generate backend Maven SBOM
+        run: |
+          mkdir -p sbom
+          cd backend
+          mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
+            -DschemaVersion=1.6 \
+            -DoutputFormat=json \
+            -DoutputName=backend-maven \
+            -DoutputDirectory=../sbom
+          test -s ../sbom/backend-maven.json
+          ls -lh ../sbom/backend-maven.json
+
+      - name: Upload backend SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-maven-sbom
+          path: sbom/backend-maven.json
+          if-no-files-found: error

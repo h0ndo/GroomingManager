@@ -1,0 +1,31 @@
+# Beispielwerte fuer eine Kundeninstanz.
+# Kopieren nach terraform.tfvars und Secrets ersetzen.
+# terraform.tfvars darf nicht committed werden.
+
+keycloak_url = "https://grooming-manager-demo.example.de/auth"
+keycloak_admin_username = "admin"
+keycloak_admin_password = "demo_keycloak_admin_password"
+
+realm = "grooming-manager"
+app_url = "https://grooming-manager-demo.example.de"
+
+oidc_client_id = "grooming-manager-app"
+# Keycloak-Selbstregistrierung bleibt deaktiviert; Nutzer werden durch Admins/App-Workflows angelegt.
+registration_allowed = false
+
+initial_admin_email = "initial-admin@example.de"
+initial_admin_password = "demo_admin_password"
+initial_admin_first_name = "Admin"
+initial_admin_last_name = ""
+
+# Nur fuer lokale Entwicklung / Playwright E2E Tests aktivieren.
+# Nicht in produktiven Kundeninstanzen verwenden.
+test_users_enabled = false
+test_admin_email = "admin@example.de"
+test_admin_password = "123"
+test_fuehrungskraft_email = "fuehrungskraft@example.de"
+test_fuehrungskraft_password = "123"
+test_angestellter_email = "angestellter@example.de"
+test_angestellter_password = "123"
+test_kunde_email = "kunde@example.de"
+test_kunde_password = "123"

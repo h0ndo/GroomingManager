@@ -1,0 +1,21 @@
+<section class="hero">
+  <p-card styleClass="hero-card">
+    <ng-template pTemplate="header">
+      <div class="hero-card__header">
+        <span class="pi pi-heart-pulse" aria-hidden="true"></span>
+      </div>
+    </ng-template>
+
+    <p class="eyebrow">GroomingManager</p>
+    <h1>Willkommen im geschützten Arbeitsbereich.</h1>
+    <p>
+      Du bist über Keycloak angemeldet. Das Frontend nutzt dein Access Token für geschützte
+      Backend-Endpunkte über <code>/api</code>.
+    </p>
+
+    <a pButton routerLink="/dashboard" class="dashboard-link">
+      <span pButtonIcon class="pi pi-arrow-right"></span>
+      <span pButtonLabel>Zum Dashboard</span>
+    </a>
+  </p-card>
+</section>

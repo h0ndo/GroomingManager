@@ -1,0 +1,42 @@
+:host {
+  display: block;
+}
+
+.hero {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  padding: 3rem;
+}
+
+.hero-card {
+  max-width: 860px;
+  overflow: hidden;
+}
+
+.hero-card__header {
+  min-height: 8rem;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #dbeafe, #eef2ff 55%, #f0fdfa);
+  color: #2563eb;
+  font-size: 2.25rem;
+}
+
+.eyebrow {
+  color: #2563eb;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  max-width: 720px;
+  margin: 0 0 1rem;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  line-height: 1;
+}
+
+.dashboard-link {
+  margin-top: 1rem;
+}

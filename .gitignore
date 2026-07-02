@@ -1,0 +1,57 @@
+# Projekt
+
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Betriebssystem / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python optional
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Generated SBOM artifacts
+sbom/
+
+# Playwright
+playwright/test-results/
+playwright/playwright-report/
+playwright/.cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!.tfvars.example
+crash.log
+crash.*.log
+
+# Lokale SSH-Schlüssel / Secrets niemals committen
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.pem
+*.key
+*.ppk
+erwin
+erwin.pub
