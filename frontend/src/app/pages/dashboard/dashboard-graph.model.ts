@@ -391,6 +391,14 @@ export function isTopLevelDashboardGraphNode(nodeId: string): boolean {
   return isTopLevelNodeId(nodeId);
 }
 
+export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolean {
+  if (node.id === 'start' || isTopLevelNodeId(node.id)) {
+    return false;
+  }
+
+  return !!node.route || !!node.action || node.kind === 'page' || node.kind === 'action' || node.kind === 'instance';
+}
+
 export function expandableDashboardGraphNodeIds(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',

@@ -88,6 +88,8 @@ export class WorkspaceGraph {
   @Input() lockAnchoredNodesToAutoLayout = true;
   @Input() showFitToViewControl = false;
   @Input() centeredNodeId = '';
+  @Input() expandedNodeIds: ReadonlySet<string> = new Set();
+  @Input() expandableNodeIds: readonly string[] = [];
 
   @Output() nodeActivated = new EventEmitter<WorkspaceGraphSelection>();
 
@@ -315,7 +317,17 @@ export class WorkspaceGraph {
       [`workspace-graph__node--${node.kind}`]: true,
       'workspace-graph__node--active': node.id === this.activeNodeId,
       'workspace-graph__node--draggable': this.isNodeDraggable(node),
+      'workspace-graph__node--expanded': this.isNodeExpanded(node),
+      'workspace-graph__node--collapsed': this.isNodeExpandable(node) && !this.isNodeExpanded(node),
     };
+  }
+
+  protected isNodeExpandable(node: WorkspaceGraphNode): boolean {
+    return this.expandableNodeIds.includes(node.id);
+  }
+
+  protected isNodeExpanded(node: WorkspaceGraphNode): boolean {
+    return this.expandedNodeIds.has(node.id);
   }
 
   protected nodeAccessibleLabel(node: WorkspaceGraphNode): string {
@@ -337,6 +349,16 @@ export class WorkspaceGraph {
   protected nodeStatusLabel(node: WorkspaceGraphNode): string {
     const status = node.id === this.activeNodeId ? 'Aktiver Arbeitsknoten' : 'Nicht aktiv';
     const childCount = this.childNodes(node.id).length;
+
+    if (this.isNodeExpandable(node)) {
+      const expansionState = this.isNodeExpanded(node) ? 'aufgeklappt' : 'eingeklappt';
+
+      if (childCount > 0) {
+        return `${status}, ${expansionState}, ${childCount} Inhalte sichtbar`;
+      }
+
+      return `${status}, ${expansionState}`;
+    }
 
     if (childCount > 0) {
       return `${status}, ${childCount} Inhalte sichtbar`;
@@ -362,6 +384,10 @@ export class WorkspaceGraph {
   }
 
   protected nodeActionHint(node: WorkspaceGraphNode): string {
+    if (this.isNodeExpandable(node)) {
+      return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; funktionale Knoten können zusätzlich eine Seite oder Aktion öffnen';
+    }
+
     if (this.isNodeDraggable(node)) {
       return 'Click, Enter oder Space aktiviert, in Custom Flex per Maus verschiebbar';
     }

@@ -20,6 +20,7 @@ import {
   expandableDashboardGraphNodeIds,
   hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
+  isFunctionalDashboardGraphNode,
   isTopLevelDashboardGraphNode,
   type DashboardGraphRole,
   type CustomerInstance,
@@ -106,6 +107,7 @@ type AgendaItem = {
 })
 export class Dashboard implements OnInit {
   protected readonly auth = inject(AuthService);
+  protected readonly expandableDashboardGraphNodeIds = expandableDashboardGraphNodeIds;
   private readonly http = inject(HttpClient);
   private readonly hostElement: ElementRef<HTMLElement> = inject(ElementRef);
 
@@ -221,14 +223,37 @@ export class Dashboard implements OnInit {
 
   protected handleGraphSelection(selection: WorkspaceGraphSelection): void {
     const node = selection.node;
+    const hasChildren = hasDashboardGraphChildren(node.id, this.favoriteCustomers(), this.graphRole());
+    const isStructuralNode = hasChildren && !isFunctionalDashboardGraphNode(node);
+
     this.activeNodeId.set(node.id);
 
     if (this.layoutMode() === 'custom-flex' && node.id === 'start') {
       this.toggleEntireGraph();
-    } else if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
-      this.focusedTopLevelNodeId.set(node.id);
-      this.focusTopLevelExpansion(node.id);
-    } else if (hasDashboardGraphChildren(node.id, this.favoriteCustomers(), this.graphRole())) {
+      return;
+    }
+
+    if (isStructuralNode) {
+      if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
+        this.focusedTopLevelNodeId.set(node.id);
+        this.focusTopLevelExpansion(node.id);
+      } else {
+        this.toggleExpandedNode(node.id);
+      }
+
+      this.workspacePanel.set({
+        mode: 'overview',
+        eyebrow: this.panelEyebrow(node),
+        title: node.label,
+        description: this.expandedNodeIds().has(node.id)
+          ? `${node.label} ist aufgeklappt. Wähle einen Unterknoten, um eine Seite oder Aktion zu öffnen.`
+          : `${node.label} ist zugeklappt. Beim Klick auf Strukturknoten wird keine Seite geöffnet.`,
+        node,
+      });
+      return;
+    }
+
+    if (hasChildren) {
       this.toggleExpandedNode(node.id);
     }
 
@@ -240,18 +265,6 @@ export class Dashboard implements OnInit {
         title: 'Kundensuche geöffnet',
         description:
           'Suche Kund:innen über Vor- oder Nachname. Ergebnisse können als Arbeitsknoten am Favoritenbereich angeheftet werden.',
-        node,
-      });
-      return;
-    }
-
-    if (node.id === 'customers' && this.canManageCustomers()) {
-      this.openCustomerSearchWorkPage(node, selection.sourceOrigin);
-      this.workspacePanel.set({
-        mode: 'search',
-        eyebrow: 'Kundendomäne',
-        title: 'Kundensuche geöffnet',
-        description: 'Der Kunden-Knoten öffnet für Admins und Groomer direkt die runde Suche nach Vor- und Nachname.',
         node,
       });
       return;

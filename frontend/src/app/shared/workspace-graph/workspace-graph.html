@@ -76,6 +76,8 @@
           [attr.data-node-id]="node.id"
           [attr.aria-label]="nodeAccessibleLabel(node)"
           [attr.aria-current]="node.id === activeNodeId ? 'true' : null"
+          [attr.aria-expanded]="isNodeExpandable(node) ? isNodeExpanded(node) : null"
+          [attr.aria-controls]="isNodeExpandable(node) ? childListId(node) : null"
           (pointerdown)="beginNodeDrag($event, node)"
           (click)="activateNode(node, $event)"
         >

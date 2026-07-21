@@ -236,6 +236,29 @@
   box-shadow: 0 0 0 5px rgb(22 163 74 / 15%), 0 18px 45px rgb(22 163 74 / 22%);
 }
 
+.workspace-graph__node--collapsed::after,
+.workspace-graph__node--expanded::after {
+  align-items: center;
+  background: #16a34a;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  bottom: -0.15rem;
+  color: #fff;
+  content: '+';
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  height: 1.35rem;
+  justify-content: center;
+  position: absolute;
+  right: -0.15rem;
+  width: 1.35rem;
+}
+
+.workspace-graph__node--expanded::after {
+  content: '−';
+}
+
 .workspace-graph__node--root {
   --node-size: 6.4rem;
 

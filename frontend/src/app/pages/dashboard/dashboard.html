@@ -52,6 +52,8 @@
       [centeredNodeId]="layoutMode() === 'focused-work' ? activeNodeId() : ''"
       [lockAnchoredNodesToAutoLayout]="layoutMode() === 'focused-work'"
       [showFitToViewControl]="layoutMode() === 'custom-flex'"
+      [expandedNodeIds]="expandedNodeIds()"
+      [expandableNodeIds]="expandableDashboardGraphNodeIds(favoriteCustomers(), graphRole())"
       [attr.inert]="hasActiveWorkPage() ? '' : null"
       [attr.aria-hidden]="hasActiveWorkPage() ? 'true' : null"
       (nodeActivated)="handleGraphSelection($event)"

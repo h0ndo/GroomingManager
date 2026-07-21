@@ -88,6 +88,24 @@ function favoriteToggleButtons(fixture: ComponentFixture<Dashboard>): HTMLButton
   );
 }
 
+function expandCustomersNode(fixture: ComponentFixture<Dashboard>): void {
+  graphNodeButton(fixture, 'Kunden').click();
+  fixture.detectChanges();
+  tick();
+  fixture.detectChanges();
+}
+
+function openCustomerSearchFromGraph(fixture: ComponentFixture<Dashboard>): void {
+  if (!graphNodeLabels(fixture).includes('Suchen')) {
+    expandCustomersNode(fixture);
+  }
+
+  graphNodeButton(fixture, 'Suchen').click();
+  fixture.detectChanges();
+  tick();
+  fixture.detectChanges();
+}
+
 
 function customerDto(id: number, displayName: string, overrides: Record<string, string | null> = {}): Record<string, string | number | null> {
   return {
@@ -193,7 +211,7 @@ describe('Dashboard', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('pre')).toBeNull();
   });
 
-  it('opens the round customer search from the focused-work Kunden node and focuses the search field', fakeAsync(() => {
+  it('toggles the focused-work Kunden structure node without opening a work page', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
@@ -207,22 +225,50 @@ describe('Dashboard', () => {
     );
 
     expect(customersButton).not.toBeNull();
+    expect(customersButton!.getAttribute('aria-expanded')).toBe('false');
 
     customersButton!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }));
     customersButton!.click();
     fixture.detectChanges();
     tick();
 
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-label')).toContain('aufgeklappt');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Kunden ist aufgeklappt');
+    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Kunden', 'Suchen', 'Hinzufügen', 'Favoriten']));
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Suchen');
+  }));
+
+  it('opens the round customer search from the functional search node and focuses the search field', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Suchen').click();
+    fixture.detectChanges();
+    tick();
+
     const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
     const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerSearch');
 
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Suchen');
     expect(dialog?.textContent).toContain('Kundensuche');
     expect(searchInput).not.toBeNull();
     expect(document.activeElement).toBe(searchInput);
-    expect(text).toContain('Der Kunden-Knoten öffnet für Admins und Groomer direkt die runde Suche');
-    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Kunden', 'Suchen', 'Hinzufügen', 'Favoriten']));
   }));
 
   it('loads customer search results from the backend with one extra row for overflow detection', fakeAsync(() => {
@@ -235,9 +281,7 @@ describe('Dashboard', () => {
     flushCustomerFavoritesIfRequested();
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain('Bitte gib einen Vor- oder Nachnamen ein.');
@@ -285,9 +329,7 @@ describe('Dashboard', () => {
     flushCustomerFavoritesIfRequested();
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     (fixture.componentInstance as unknown as { updateCustomerSearchTerm: (searchTerm: string) => void }).updateCustomerSearchTerm(
       'muster',
@@ -326,9 +368,7 @@ describe('Dashboard', () => {
     });
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     setCustomerSearchTerm(fixture, 'muster');
     flushCustomerSearch('muster', [
@@ -387,9 +427,7 @@ describe('Dashboard', () => {
     });
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     setCustomerSearchTerm(fixture, 'katja');
     flushCustomerSearch('katja', [
@@ -418,9 +456,7 @@ describe('Dashboard', () => {
     });
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
 
@@ -463,9 +499,7 @@ describe('Dashboard', () => {
     });
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
@@ -501,9 +535,7 @@ describe('Dashboard', () => {
     flushCustomerFavoritesIfRequested();
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
@@ -551,9 +583,7 @@ describe('Dashboard', () => {
     flushCustomerFavoritesIfRequested();
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
@@ -599,9 +629,7 @@ describe('Dashboard', () => {
     flushCustomerFavoritesIfRequested();
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
@@ -644,9 +672,7 @@ describe('Dashboard', () => {
     ]);
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
 
@@ -679,9 +705,7 @@ describe('Dashboard', () => {
     ]);
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     closeActiveWorkPage(fixture);
@@ -740,9 +764,7 @@ describe('Dashboard', () => {
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([]);
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     setCustomerSearchTerm(fixture, 'katja');
     flushCustomerSearch('katja', [
@@ -789,9 +811,7 @@ describe('Dashboard', () => {
     ]);
     fixture.detectChanges();
 
-    graphNodeButton(fixture, 'Kunden').click();
-    fixture.detectChanges();
-    tick();
+    openCustomerSearchFromGraph(fixture);
 
     setCustomerSearchTerm(fixture, 'muster');
     flushCustomerSearch('muster', [customerDto(8, 'Mila Muster')]);
