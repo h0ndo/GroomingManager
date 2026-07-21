@@ -344,6 +344,90 @@ describe('Dashboard', () => {
     expect(component.focusedTopLevelNodeId()).toBe('calendar');
   }));
 
+  it('closes open Kunden descendants when Hunde is activated as a top-level work node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Kunden', 'Suchen', 'Hinzufügen', 'Hunde']),
+    );
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
+
+    graphNodeButton(fixture, 'Hunde').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      expandedNodeIds: () => ReadonlySet<string>;
+      focusedTopLevelNodeId: () => string | undefined;
+    };
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hunde');
+    expect(component.focusedTopLevelNodeId()).toBe('dogs');
+    expect(component.expandedNodeIds().has('customers')).toBeFalse();
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Suchen');
+    expect(graphNodeLabels(fixture)).not.toContain('Hinzufügen');
+  }));
+
+  it('closes stale top-level subtrees recursively when switching back to Kunden', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
+    fixture.detectChanges();
+
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Profil']),
+    );
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      expandedNodeIds: () => ReadonlySet<string>;
+      focusedTopLevelNodeId: () => string | undefined;
+    };
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(component.focusedTopLevelNodeId()).toBe('customers');
+    expect(component.expandedNodeIds().has('customers')).toBeTrue();
+    expect(component.expandedNodeIds().has('customer-favorites')).toBeFalse();
+    expect(component.expandedNodeIds().has('7')).toBeFalse();
+    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Suchen', 'Hinzufügen']));
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-node-id="7-profile"]')).toBeNull();
+  }));
+
   it('focuses every visible top-level work node in focused-work mode instead of special-casing Kunden', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting

@@ -335,6 +335,10 @@ export class Dashboard implements OnInit {
 
     this.activeNodeId.set(node.id);
 
+    if (isTopLevelDashboardGraphNode(node.id)) {
+      this.collapseOtherTopLevelSubtrees(node.id);
+    }
+
     if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
       this.focusedTopLevelNodeId.set(node.id);
     }
@@ -1127,6 +1131,26 @@ export class Dashboard implements OnInit {
           }
         });
       }
+
+      return next;
+    });
+  }
+
+  private collapseOtherTopLevelSubtrees(nodeId: string): void {
+    const staleSubtreeNodeIds = dashboardGraphSiblingSubtreeNodeIds(
+      nodeId,
+      this.favoriteCustomers(),
+      this.graphRole(),
+    );
+
+    if (staleSubtreeNodeIds.length === 0) {
+      return;
+    }
+
+    this.expandedNodeIds.update((current) => {
+      const next = new Set(current);
+
+      staleSubtreeNodeIds.forEach((staleNodeId) => next.delete(staleNodeId));
 
       return next;
     });
