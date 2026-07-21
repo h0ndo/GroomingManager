@@ -206,10 +206,6 @@
                 tabindex="-1"
                 [attr.aria-label]="selectedCustomerLabel() + ' Kundenprofil im Lesemodus'"
               >
-                <div class="customer-profile-read__mode" role="status">
-                  <span class="pi pi-eye" aria-hidden="true"></span>
-                  Lesemodus · keine direkte Bearbeitung
-                </div>
                 <dl class="customer-profile-read__fields">
                   <div>
                     <dt>Vorname</dt>
@@ -238,11 +234,6 @@
                 </dl>
                 @if (customer.note) {
                   <p class="customer-profile-read__note">{{ customer.note }}</p>
-                }
-                @if (canManageCustomers()) {
-                  <p class="customer-profile-read__favorite-state" role="status">
-                    {{ favoriteStatusLabel(customer) }}
-                  </p>
                 }
                 @if (favoriteStatusMessage()) {
                   <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>

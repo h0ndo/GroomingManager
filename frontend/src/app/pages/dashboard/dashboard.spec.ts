@@ -441,9 +441,13 @@ describe('Dashboard', () => {
     const host = fixture.nativeElement as HTMLElement;
     const dialog = host.querySelector('[role="dialog"]');
     const profile = host.querySelector<HTMLElement>('#customerProfileReadMode');
+    const headerDescription = dialog?.querySelector<HTMLElement>('.circular-work-page__description');
 
     expect(dialog?.textContent).toContain('Mila Muster Profil');
-    expect(dialog?.textContent).toContain('Lesemodus · keine direkte Bearbeitung');
+    expect(dialog?.textContent).not.toContain(
+      'Lesemodus: Stammdaten und verfügbare Kontaktinformationen, ohne direkte Bearbeitung.',
+    );
+    expect(dialog?.textContent).not.toContain('Lesemodus · keine direkte Bearbeitung');
     expect(dialog?.textContent).toContain('Vorname');
     expect(dialog?.textContent).toContain('Mila');
     expect(dialog?.textContent).toContain('Nachname');
@@ -451,8 +455,11 @@ describe('Dashboard', () => {
     expect(dialog?.textContent).toContain('mila.muster@example.local');
     expect(dialog?.textContent).toContain('+49 151 1000 1002');
     expect(dialog?.textContent).toContain('Zurück zur Suche');
-    expect(dialog?.textContent).toContain('Nicht angeheftet');
+    expect(dialog?.textContent).not.toContain('Nicht angeheftet');
     expect(dialog?.textContent).toContain('Als Favorit anheften');
+    expect(headerDescription?.classList).toContain('circular-work-page__description--sr-only');
+    expect(dialog?.querySelector('.customer-profile-read__mode')).toBeNull();
+    expect(dialog?.querySelector('.customer-profile-read__favorite-state')).toBeNull();
     expect(dialog?.querySelector('.customer-profile-read .favorite-toggle')).toBeNull();
     expect(dialog?.querySelector('.customer-profile-read__back')).toBeNull();
     expect(dialog?.querySelector('.customer-profile-read__delete')).toBeNull();
@@ -1026,7 +1033,9 @@ describe('Dashboard', () => {
     const profile = host.querySelector<HTMLElement>('#customerProfileReadMode');
 
     expect(dialog?.textContent).toContain('Katja Gross Profil');
-    expect(dialog?.textContent).toContain('Lesemodus · keine direkte Bearbeitung');
+    expect(dialog?.textContent).not.toContain('Lesemodus · keine direkte Bearbeitung');
+    expect(dialog?.querySelector('.customer-profile-read__mode')).toBeNull();
+    expect(dialog?.querySelector('.customer-profile-read__favorite-state')).toBeNull();
     expect(dialog?.textContent).toContain('Zum Kunden-Knoten');
     expect(host.textContent ?? '').toContain(
       'Das Profil ist zunächst als klarer Lesemodus geöffnet. Bearbeiten bleibt bewusst eine spätere Aktion.',

@@ -9,7 +9,7 @@ import { CircularWorkPage, CircularWorkPageAction } from './circular-work-page';
   template: `
     <app-circular-work-page
       title="Kundenliste"
-      description="Wähle eine Kund:in aus."
+      [description]="description()"
       contentType="list"
       sourceLabel="Kundenliste"
       originLabel="aus Knoten Kund:innen"
@@ -28,6 +28,7 @@ class CircularWorkPageHost {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly empty = signal(false);
+  readonly description = signal('Wähle eine Kund:in aus.');
   readonly primaryActionLabel = signal('');
   readonly actionButtons = signal<CircularWorkPageAction[]>([]);
 }
@@ -89,7 +90,7 @@ describe('CircularWorkPage', () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('Kund:innen konnten nicht geladen werden. Erneut versuchen.');
   });
 
-  it('keeps persistent actions circular and named while placing them radially bottom-right', () => {
+  it('keeps persistent actions circular and named while placing them at the bottom center', () => {
     fixture.componentInstance.actionButtons.set([
       { id: 'close', label: 'Schließen', icon: 'pi-times', severity: 'contrast', closes: true },
       { id: 'save', label: 'Speichern', icon: 'pi-check', severity: 'primary' },
@@ -117,15 +118,14 @@ describe('CircularWorkPage', () => {
 
     const dialogCenter = centerOf(dialog!.getBoundingClientRect());
     const actionsCenter = centerOf(actions!.getBoundingClientRect());
-    const offsetX = actionsCenter.x - dialogCenter.x;
+    const offsetX = Math.abs(actionsCenter.x - dialogCenter.x);
     const offsetY = actionsCenter.y - dialogCenter.y;
 
-    const radialAngleDegrees = (Math.atan2(offsetY, offsetX) * 180) / Math.PI;
-
-    expect(offsetX).withContext('actions sit right of panel center').toBeGreaterThan(0);
+    expect(offsetX).withContext('actions are horizontally centered').toBeLessThan(2);
     expect(offsetY).withContext('actions sit below panel center').toBeGreaterThan(0);
-    expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeGreaterThan(25);
-    expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeLessThan(55);
+    expect(actionsCenter.y).withContext('actions stay inside the circular dialog').toBeLessThan(
+      dialog!.getBoundingClientRect().bottom,
+    );
   });
 
   it('keeps title and description visually slim and single line', () => {
@@ -139,5 +139,18 @@ describe('CircularWorkPage', () => {
     expect(getComputedStyle(title!).textOverflow).toBe('ellipsis');
     expect(getComputedStyle(description!).whiteSpace).toBe('nowrap');
     expect(getComputedStyle(description!).textOverflow).toBe('ellipsis');
+  });
+
+  it('keeps the accessible description screenreader-only when no visual description is provided', () => {
+    fixture.componentInstance.description.set('');
+    fixture.detectChanges();
+
+    const description = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.circular-work-page__description',
+    );
+
+    expect(description).not.toBeNull();
+    expect(description!.classList).toContain('circular-work-page__description--sr-only');
+    expect(getComputedStyle(description!).position).toBe('absolute');
   });
 });

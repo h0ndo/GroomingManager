@@ -119,6 +119,14 @@
   white-space: nowrap;
 }
 
+.circular-work-page__description--sr-only {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+}
+
 .circular-work-page__content {
   font-size: 0.92rem;
   margin-block-start: 0.25rem;
@@ -161,9 +169,9 @@
   display: flex;
   gap: 0.5rem;
   justify-content: center;
-  left: 78%;
+  left: 50%;
   position: absolute;
-  top: 78%;
+  top: 82%;
   transform: translate(-50%, -50%);
 }
 
@@ -237,8 +245,10 @@
   }
 
   .circular-work-page__actions {
-    inset: auto 1.2rem 1.2rem auto;
-    transform: none;
+    bottom: 1.2rem;
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
   }
 }
 

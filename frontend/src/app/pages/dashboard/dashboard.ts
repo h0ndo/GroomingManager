@@ -1341,8 +1341,6 @@ export class Dashboard implements OnInit {
       sourceOrigin,
       contentType: 'detail',
       title: `${customerDisplayName(customer)} Profil`,
-      description:
-        'Lesemodus: Stammdaten und verfügbare Kontaktinformationen, ohne direkte Bearbeitung.',
       originLabel: `aus Knoten ${sourceNode.label}`,
       primaryActionLabel: '',
       secondaryActionLabel,

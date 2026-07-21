@@ -23,7 +23,9 @@
         @if (description) {
           <p [id]="dialogDescriptionId" class="circular-work-page__description">{{ description }}</p>
         } @else {
-          <p [id]="dialogDescriptionId" class="circular-work-page__description">{{ accessibleContext() }}</p>
+          <p [id]="dialogDescriptionId" class="circular-work-page__description circular-work-page__description--sr-only">
+            {{ accessibleContext() }}
+          </p>
         }
       </header>
 
