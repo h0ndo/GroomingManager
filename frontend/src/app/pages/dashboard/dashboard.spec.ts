@@ -276,6 +276,109 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Suchen');
   }));
 
+  it('activates Hunde as focused-work focus with pointer and keyboard without panning', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      focusedTopLevelNodeId: () => string | undefined;
+      presentedCenteredNodeId: () => string;
+    };
+    const dogsButton = graphNodeButton(fixture, 'Hunde');
+
+    dogsButton.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }),
+    );
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.workspace-graph__viewport--panning')).toBeNull();
+
+    dogsButton.click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hunde');
+    expect(component.focusedTopLevelNodeId()).toBe('dogs');
+    expect(component.presentedCenteredNodeId()).toBe('dogs');
+    expect(graphNodeButton(fixture, 'Hunde').getAttribute('aria-current')).toBe('true');
+    expect(graphNodeButton(fixture, 'Hunde').getAttribute('aria-label')).toContain(
+      'Hunde, Domäne. Aktiver Arbeitsknoten',
+    );
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Tierprofile, Pflegehinweise und Dokumentation',
+    );
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+
+    graphNodeButton(fixture, 'Hunde').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hunde');
+    expect(component.focusedTopLevelNodeId()).toBe('dogs');
+
+    graphNodeButton(fixture, 'Kalender').dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kalender');
+    expect(component.focusedTopLevelNodeId()).toBe('calendar');
+  }));
+
+  it('focuses every visible top-level work node in focused-work mode instead of special-casing Kunden', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      focusedTopLevelNodeId: () => string | undefined;
+    };
+    const topLevelNodes = [
+      { label: 'Groomer', id: 'groomers' },
+      { label: 'Kalender', id: 'calendar' },
+      { label: 'Admin', id: 'admin' },
+      { label: 'Kunden', id: 'customers' },
+      { label: 'Favoriten', id: 'customer-favorites' },
+      { label: 'Hunde', id: 'dogs' },
+    ];
+
+    topLevelNodes.forEach((node) => {
+      graphNodeButton(fixture, node.label).click();
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe(node.label);
+      expect(component.focusedTopLevelNodeId()).toBe(node.id);
+    });
+  }));
+
   it('opens the round customer search from the functional search node and focuses the search field', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting

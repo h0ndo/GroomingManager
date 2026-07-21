@@ -89,6 +89,8 @@
           [disabled]="interactionLocked"
           (pointerdown)="beginNodeDrag($event, node)"
           (click)="activateNode(node, $event)"
+          (keydown.enter)="activateNodeFromKeyboard(node, $event)"
+          (keydown.space)="activateNodeFromKeyboard(node, $event)"
         >
           @if (node.logoUrl) {
             <img

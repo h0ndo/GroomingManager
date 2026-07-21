@@ -159,13 +159,19 @@ describe('WorkspaceGraph', () => {
     expect(rootPosition.x).toBeLessThan(activePosition.x);
   });
 
-  it('keeps focused-work node pointer clicks on the activation path instead of starting viewport panning', () => {
+  it('keeps focused-work top-level pointer clicks on the activation path instead of starting viewport panning', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
       { id: 'customers', label: 'Kunden', kind: 'domain', layout: { angle: 0 } },
+      { id: 'dogs', label: 'Hunde', kind: 'domain', layout: { angle: 120 } },
+      { id: 'calendar', label: 'Kalender', kind: 'domain', layout: { angle: 240 } },
     ];
-    const graphEdges: WorkspaceGraphEdge[] = [{ from: 'start', to: 'customers' }];
-    let activatedNodeId = '';
+    const graphEdges: WorkspaceGraphEdge[] = [
+      { from: 'start', to: 'customers' },
+      { from: 'start', to: 'dogs' },
+      { from: 'start', to: 'calendar' },
+    ];
+    const activatedNodeIds: string[] = [];
 
     fixture.componentRef.setInput('nodes', graphNodes);
     fixture.componentRef.setInput('edges', graphEdges);
@@ -173,24 +179,53 @@ describe('WorkspaceGraph', () => {
     fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', true);
     fixture.componentRef.setInput('activeNodeId', 'start');
     fixture.componentInstance.nodeActivated.subscribe((selection) => {
-      activatedNodeId = selection.node.id;
+      activatedNodeIds.push(selection.node.id);
     });
     fixture.detectChanges();
 
     const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
-    const customerButton = buttonByText(fixture, 'Kunden');
 
-    customerButton.dispatchEvent(
-      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }),
-    );
+    ['Kunden', 'Hunde', 'Kalender'].forEach((label) => {
+      const nodeButton = buttonByText(fixture, label);
+
+      nodeButton.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }),
+      );
+      fixture.detectChanges();
+
+      expect(component.isPanning()).toBeFalse();
+      expect(fixture.nativeElement.querySelector('.workspace-graph__viewport--panning')).toBeNull();
+
+      nodeButton.click();
+    });
+
+    expect(activatedNodeIds).toEqual(['customers', 'dogs', 'calendar']);
+  });
+
+  it('activates focused-work nodes with Enter and Space like pointer clicks', () => {
+    const graphNodes: WorkspaceGraphNode[] = [
+      { id: 'start', label: 'Start', kind: 'root' },
+      { id: 'dogs', label: 'Hunde', kind: 'domain', layout: { angle: 0 } },
+    ];
+    const graphEdges: WorkspaceGraphEdge[] = [{ from: 'start', to: 'dogs' }];
+    const activatedNodeIds: string[] = [];
+
+    fixture.componentRef.setInput('nodes', graphNodes);
+    fixture.componentRef.setInput('edges', graphEdges);
+    fixture.componentRef.setInput('autoLayout', true);
+    fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', true);
+    fixture.componentRef.setInput('activeNodeId', 'start');
+    fixture.componentInstance.nodeActivated.subscribe((selection) => {
+      activatedNodeIds.push(selection.node.id);
+    });
     fixture.detectChanges();
 
-    expect(component.isPanning()).toBeFalse();
-    expect(fixture.nativeElement.querySelector('.workspace-graph__viewport--panning')).toBeNull();
+    const dogsButton = buttonByText(fixture, 'Hunde');
 
-    customerButton.click();
+    dogsButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    dogsButton.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
 
-    expect(activatedNodeId).toBe('customers');
+    expect(activatedNodeIds).toEqual(['dogs', 'dogs']);
   });
 
   it('recomputes child nodes radial to a manually moved parent in custom flex mode', () => {

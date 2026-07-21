@@ -335,6 +335,10 @@ export class Dashboard implements OnInit {
 
     this.activeNodeId.set(node.id);
 
+    if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
+      this.focusedTopLevelNodeId.set(node.id);
+    }
+
     if (this.layoutMode() === 'custom-flex' && node.id === 'start') {
       this.toggleEntireGraph();
       return;
@@ -342,7 +346,6 @@ export class Dashboard implements OnInit {
 
     if (isStructuralNode) {
       if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
-        this.focusedTopLevelNodeId.set(node.id);
         this.focusTopLevelExpansion(node.id);
       } else {
         this.toggleExpandedNode(node.id);

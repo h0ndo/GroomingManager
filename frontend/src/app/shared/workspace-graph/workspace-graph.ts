@@ -490,6 +490,16 @@ export class WorkspaceGraph {
     this.nodeActivated.emit({ node, connectedNodes, sourceOrigin: this.resolveNodeOrigin(event) });
   }
 
+  protected activateNodeFromKeyboard(node: WorkspaceGraphNode, event: Event): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.activateNode(node, event);
+  }
+
   private resolveNodeOrigin(event: Event | undefined): WorkspaceGraphNodeOrigin | undefined {
     if (!(event?.currentTarget instanceof HTMLElement)) {
       return undefined;
