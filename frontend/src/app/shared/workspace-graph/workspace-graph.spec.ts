@@ -351,6 +351,45 @@ describe('WorkspaceGraph', () => {
     expect(customerButton.getAttribute('aria-label')).toContain('verbunden mit Suchen');
   });
 
+  it('does not render plus badges on expandable top-level or normal navigation nodes and keeps click activation', () => {
+    const graphNodes: WorkspaceGraphNode[] = [
+      { id: 'start', label: 'Start', kind: 'root' },
+      { id: 'customers', label: 'Kunden', kind: 'domain' },
+      { id: 'customer-list', label: 'Kundenliste', kind: 'page' },
+    ];
+    const graphEdges: WorkspaceGraphEdge[] = [
+      { from: 'start', to: 'customers' },
+      { from: 'customers', to: 'customer-list' },
+    ];
+    let activatedNodeId = '';
+
+    fixture.componentRef.setInput('nodes', graphNodes);
+    fixture.componentRef.setInput('edges', graphEdges);
+    fixture.componentRef.setInput('expandableNodeIds', ['start', 'customers']);
+    fixture.componentRef.setInput('expandedNodeIds', new Set(['start']));
+    fixture.componentInstance.nodeActivated.subscribe((selection) => {
+      activatedNodeId = selection.node.id;
+    });
+    fixture.detectChanges();
+
+    const startButton = buttonByText(fixture, 'Start');
+    const customerButton = buttonByText(fixture, 'Kunden');
+    const pageButton = buttonByText(fixture, 'Kundenliste');
+    const pseudoContents = [startButton, customerButton, pageButton].map((button) =>
+      getComputedStyle(button, '::after').content,
+    );
+
+    expect(startButton.classList).toContain('workspace-graph__node--expanded');
+    expect(customerButton.classList).toContain('workspace-graph__node--collapsed');
+    expect(pseudoContents).not.toContain('"+"');
+    expect(pseudoContents).not.toContain('"−"');
+    expect(fixture.nativeElement.querySelector('.workspace-graph__node .pi-plus')).toBeNull();
+
+    customerButton.click();
+
+    expect(activatedNodeId).toBe('customers');
+  });
+
   it('marks only top-level nodes as draggable in custom flex mode', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
