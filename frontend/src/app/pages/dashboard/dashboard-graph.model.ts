@@ -453,6 +453,30 @@ export function isDashboardGraphFullyExpanded(
   );
 }
 
+export function dashboardGraphDescendantNodeIds(
+  nodeId: string,
+  customers: readonly CustomerInstance[],
+  role: DashboardGraphRole = 'admin',
+): string[] {
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const descendants: string[] = [];
+  const pendingNodeIds = [nodeId];
+
+  while (pendingNodeIds.length > 0) {
+    const currentNodeId = pendingNodeIds.shift()!;
+    const childNodeIds = edges
+      .filter((edge) => edge.from === currentNodeId)
+      .map((edge) => edge.to)
+      .filter((childNodeId) => !descendants.includes(childNodeId));
+
+    descendants.push(...childNodeIds);
+    pendingNodeIds.push(...childNodeIds);
+  }
+
+  return descendants;
+}
+
 export function buildDashboardGraphNodes(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,
@@ -475,12 +499,18 @@ export function buildDashboardGraphNodes(
     }
   });
 
-  if (canManageCustomerGraph(role) && expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID)) {
+  const isCustomerAreaExpanded = expandedNodeIds.has('customers');
+  const isCustomerFavoritesVisible =
+    canManageCustomerGraph(role) &&
+    isCustomerAreaExpanded &&
+    expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
+
+  if (isCustomerFavoritesVisible) {
     nodes.push(...visibleFavoriteCustomers.map((customer) => customerInstanceNode(customer)));
   }
 
   visibleFavoriteCustomers.forEach((customer) => {
-    if (expandedNodeIds.has(customer.id)) {
+    if (isCustomerFavoritesVisible && expandedNodeIds.has(customer.id)) {
       nodes.push(...customerActionNodes(customer, role));
     }
   });
@@ -511,7 +541,13 @@ export function buildDashboardGraphEdges(
     }
   });
 
-  if (canManageCustomerGraph(role) && expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID)) {
+  const isCustomerAreaExpanded = expandedNodeIds.has('customers');
+  const isCustomerFavoritesVisible =
+    canManageCustomerGraph(role) &&
+    isCustomerAreaExpanded &&
+    expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
+
+  if (isCustomerFavoritesVisible) {
     edges.push(
       ...visibleFavoriteCustomers.map((customer) => ({
         from: CUSTOMER_FAVORITES_NODE_ID,
@@ -521,7 +557,7 @@ export function buildDashboardGraphEdges(
   }
 
   visibleFavoriteCustomers.forEach((customer) => {
-    if (expandedNodeIds.has(customer.id)) {
+    if (isCustomerFavoritesVisible && expandedNodeIds.has(customer.id)) {
       edges.push(
         ...customerActionNodes(customer, role).map((node) => ({ from: customer.id, to: node.id })),
       );

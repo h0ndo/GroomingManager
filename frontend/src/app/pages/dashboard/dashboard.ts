@@ -21,6 +21,7 @@ import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
   customerDisplayName,
+  dashboardGraphDescendantNodeIds,
   expandableDashboardGraphNodeIds,
   hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
@@ -875,6 +876,11 @@ export class Dashboard implements OnInit {
 
       if (next.has(nodeId)) {
         next.delete(nodeId);
+        dashboardGraphDescendantNodeIds(
+          nodeId,
+          this.favoriteCustomers(),
+          this.graphRole(),
+        ).forEach((descendantNodeId) => next.delete(descendantNodeId));
       } else {
         next.add(nodeId);
       }

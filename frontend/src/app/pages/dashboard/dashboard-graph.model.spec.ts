@@ -1,6 +1,7 @@
 import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
+  dashboardGraphDescendantNodeIds,
   expandableDashboardGraphNodeIds,
   hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
@@ -223,6 +224,36 @@ describe('dashboard graph model', () => {
         { from: 'customer-katja-gross', to: 'customer-katja-gross-appointment-list' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-delete' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-detach' },
+      ]),
+    );
+  });
+
+  it('derives recursive customer descendants and hides stale descendant expansions without their parent chain', () => {
+    const staleExpandedNodeIds = new Set([
+      'customer-favorites',
+      'customer-katja-gross',
+      'customer-alex-sommer',
+    ]);
+
+    expect(dashboardGraphDescendantNodeIds('customers', favoriteCustomers)).toEqual(
+      jasmine.arrayContaining([
+        'customer-search',
+        'customer-add',
+        'customer-favorites',
+        'customer-katja-gross',
+        'customer-alex-sommer',
+        'customer-katja-gross-profile',
+        'customer-katja-gross-appointment-list',
+        'customer-katja-gross-delete',
+        'customer-katja-gross-detach',
+      ]),
+    );
+    expect(buildDashboardGraphNodes(favoriteCustomers, staleExpandedNodeIds).map((node) => node.id))
+      .not.toEqual(jasmine.arrayContaining(['customer-favorites', 'customer-katja-gross']));
+    expect(buildDashboardGraphEdges(favoriteCustomers, staleExpandedNodeIds)).not.toEqual(
+      jasmine.arrayContaining([
+        { from: 'customer-favorites', to: 'customer-katja-gross' },
+        { from: 'customer-katja-gross', to: 'customer-katja-gross-profile' },
       ]),
     );
   });

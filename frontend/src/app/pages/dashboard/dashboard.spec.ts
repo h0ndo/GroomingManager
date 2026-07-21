@@ -884,6 +884,60 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Profil');
   }));
 
+  it('collapses all open customer descendants when the parent customer node is closed', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Profil', 'Terminliste', 'Löschen', 'X']),
+    );
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-label')).toContain(
+      'eingeklappt',
+    );
+    expect(graphNodeLabels(fixture)).not.toContain('Favoriten');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect(graphNodeLabels(fixture)).not.toContain('Profil');
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+  }));
+
   it('opens a personal favorite customer profile only from the attached profile action node', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting
