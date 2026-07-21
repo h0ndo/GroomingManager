@@ -260,11 +260,16 @@
 }
 
 .workspace-graph__node--root {
-  --node-size: 6.4rem;
+  --node-size: 7.5rem;
 
   background: #0f172a;
   border-color: #0f172a;
   color: #fff;
+  padding: 0.35rem;
+}
+
+.workspace-graph__node--root:is(:hover, :focus-visible, .workspace-graph__node--active) {
+  border-color: #16a34a;
 }
 
 .workspace-graph__node--domain {
@@ -296,12 +301,26 @@
   font-size: 1.2rem;
 }
 
+.workspace-graph__avatar,
+.workspace-graph__logo {
+  display: block;
+  object-fit: contain;
+}
+
 .workspace-graph__avatar {
   border: 2px solid #fed7aa;
   border-radius: 999px;
   height: 2rem;
   object-fit: cover;
   width: 2rem;
+}
+
+.workspace-graph__logo {
+  border-radius: 999px;
+  height: 100%;
+  max-height: calc(var(--node-size) - 0.7rem);
+  max-width: calc(var(--node-size) - 0.7rem);
+  width: 100%;
 }
 
 .workspace-graph__label {
@@ -311,6 +330,10 @@
   line-height: 1.1;
   max-width: 4.8rem;
   overflow-wrap: anywhere;
+}
+
+.workspace-graph__label--sr-only {
+  display: none;
 }
 
 .workspace-graph__label-line {

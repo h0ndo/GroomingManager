@@ -12,11 +12,15 @@ const favoriteCustomers: CustomerInstance[] = [
 ];
 
 describe('dashboard graph model', () => {
-  it('starts with only start and the top-level domains visible', () => {
+  it('starts with a branded root node and only the top-level domains visible', () => {
     const nodes = buildDashboardGraphNodes([], new Set());
     const edges = buildDashboardGraphEdges([], new Set());
+    const startNode = nodes.find((node) => node.id === 'start') as (typeof nodes)[number] & { logoUrl?: string; rootNodeSize?: string };
 
     expect(nodes.map((node) => node.id)).toEqual(['start', 'groomers', 'calendar', 'admin', 'customers', 'dogs']);
+    expect(startNode.label).toBe('Start Schnittstelle 2');
+    expect(startNode.logoUrl).toBe('/s2.png');
+    expect(startNode.rootNodeSize).toBe('7.5rem');
     expect(edges).toEqual([
       { from: 'start', to: 'groomers' },
       { from: 'start', to: 'calendar' },

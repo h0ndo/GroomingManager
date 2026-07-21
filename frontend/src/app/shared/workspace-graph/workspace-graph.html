@@ -71,6 +71,7 @@
           [ngClass]="nodeClass(node)"
           [style.left.px]="nodePosition(node).x"
           [style.top.px]="nodePosition(node).y"
+          [style.--node-size]="nodeSize(node)"
           [style.--spawn-x]="nodeSpawnOffset(node).x + 'px'"
           [style.--spawn-y]="nodeSpawnOffset(node).y + 'px'"
           [attr.data-node-id]="node.id"
@@ -81,12 +82,14 @@
           (pointerdown)="beginNodeDrag($event, node)"
           (click)="activateNode(node, $event)"
         >
-          @if (node.avatarUrl) {
+          @if (node.logoUrl) {
+            <img class="workspace-graph__logo" [src]="node.logoUrl" alt="" aria-hidden="true" />
+          } @else if (node.avatarUrl) {
             <img class="workspace-graph__avatar" [src]="node.avatarUrl" alt="" aria-hidden="true" />
           } @else {
             <span class="workspace-graph__icon pi" [class]="'workspace-graph__icon pi ' + (node.icon ?? 'pi-circle')" aria-hidden="true"></span>
           }
-          <span class="workspace-graph__label">
+          <span class="workspace-graph__label" [class.workspace-graph__label--sr-only]="!!node.logoUrl">
             @if (node.labelLines?.length) {
               @for (labelLine of node.labelLines; track labelLine; let last = $last) {
                 <span class="workspace-graph__label-line">{{ labelLine }}</span>{{ last ? '' : ' ' }}

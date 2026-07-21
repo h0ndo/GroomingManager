@@ -52,6 +52,39 @@ describe('WorkspaceGraph', () => {
     expect(fixture.nativeElement.textContent).toContain('Alles einpassen');
   });
 
+  it('renders the root node as a larger branded logo node with an accessible start label', () => {
+    const graphNodes = [
+      {
+        id: 'start',
+        label: 'Start Schnittstelle 2',
+        kind: 'root' as const,
+        logoUrl: '/s2.png',
+      },
+      { id: 'customers', label: 'Kunden', kind: 'domain' as const },
+    ];
+
+    fixture.componentRef.setInput('nodes', graphNodes);
+    fixture.componentRef.setInput('edges', [{ from: 'start', to: 'customers' }]);
+    fixture.componentRef.setInput('autoLayout', true);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
+    const rootButton = fixture.nativeElement.querySelector('[data-node-id="start"]') as HTMLButtonElement;
+    const customerButton = buttonByText(fixture, 'Kunden');
+    const rootLogo = rootButton.querySelector('.workspace-graph__logo') as HTMLImageElement | null;
+    const rootPosition = component.nodePosition(graphNodes[0]);
+    const customerPosition = component.nodePosition(graphNodes[1]);
+
+    expect(rootButton.classList).toContain('workspace-graph__node--root');
+    expect(rootButton.style.getPropertyValue('--node-size')).toBe('7.5rem');
+    expect(customerButton.style.getPropertyValue('--node-size')).toBe('');
+    expect(rootLogo).not.toBeNull();
+    expect(rootLogo?.getAttribute('src')).toBe('/s2.png');
+    expect(rootLogo?.getAttribute('alt')).toBe('');
+    expect(rootButton.getAttribute('aria-label')).toContain('Start Schnittstelle 2, Übersicht');
+    expect(Math.hypot(customerPosition.x - rootPosition.x, customerPosition.y - rootPosition.y)).toBeGreaterThan(180);
+  });
+
   it('keeps fit-to-view at readable zoom and announces pannable overflow', () => {
     fixture.detectChanges();
 

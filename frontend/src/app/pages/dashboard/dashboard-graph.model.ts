@@ -33,13 +33,15 @@ const TOP_LEVEL_BASE_ANGLES = new Map<TopLevelNodeId, number>([
 
 const rootNode: WorkspaceGraphNode = {
   id: 'start',
-  label: 'Start',
+  label: 'Start Schnittstelle 2',
   kind: 'root',
   x: 520,
   y: 330,
   icon: 'pi-home',
+  logoUrl: '/s2.png',
+  rootNodeSize: '7.5rem',
   action: 'open-panel',
-  description: 'Dashboard und zentraler Arbeitsbereich',
+  description: 'Dashboard und zentraler Arbeitsbereich von Schnittstelle 2',
 };
 
 const topLevelNodes: WorkspaceGraphNode[] = [

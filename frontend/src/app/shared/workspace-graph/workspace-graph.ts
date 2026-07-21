@@ -23,6 +23,8 @@ export type WorkspaceGraphNode = {
     distance?: number;
   };
   icon?: string;
+  logoUrl?: string;
+  rootNodeSize?: string;
   avatarUrl?: string;
   description?: string;
   route?: string;
@@ -75,9 +77,10 @@ export class WorkspaceGraph {
   private static readonly MAX_ZOOM = 1.8;
   private static readonly FIT_VIEWPORT_PADDING = 32;
   private static readonly FIT_BOTTOM_SAFE_AREA = 48;
-  private static readonly FIT_NODE_RADIUS = 64;
+  private static readonly FIT_NODE_RADIUS = 72;
   private static readonly FIT_LABEL_SAFE_WIDTH = 168;
   private static readonly FIT_LABEL_SAFE_HEIGHT = 112;
+  private static readonly ROOT_LEVEL_DISTANCE = 190;
 
   @Input({ required: true }) nodes: WorkspaceGraphNode[] = [];
   @Input({ required: true }) edges: WorkspaceGraphEdge[] = [];
@@ -194,7 +197,7 @@ export class WorkspaceGraph {
     return computeRadialGraphLayout(layoutNodes, this.edges, {
       rootId: 'start',
       center: { x: this.width / 2, y: this.height / 2 },
-      levelDistance: 170,
+      levelDistance: WorkspaceGraph.ROOT_LEVEL_DISTANCE,
       siblingAngle: 32,
       rootStartAngle: 0,
     });
@@ -315,6 +318,7 @@ export class WorkspaceGraph {
   protected nodeClass(node: WorkspaceGraphNode): Record<string, boolean> {
     return {
       [`workspace-graph__node--${node.kind}`]: true,
+      'workspace-graph__node--branded-root': node.kind === 'root' && !!node.logoUrl,
       'workspace-graph__node--active': node.id === this.activeNodeId,
       'workspace-graph__node--draggable': this.isNodeDraggable(node),
       'workspace-graph__node--expanded': this.isNodeExpanded(node),
@@ -328,6 +332,10 @@ export class WorkspaceGraph {
 
   protected isNodeExpanded(node: WorkspaceGraphNode): boolean {
     return this.expandedNodeIds.has(node.id);
+  }
+
+  protected nodeSize(node: WorkspaceGraphNode): string | null {
+    return node.kind === 'root' ? (node.rootNodeSize ?? '7.5rem') : null;
   }
 
   protected nodeAccessibleLabel(node: WorkspaceGraphNode): string {
