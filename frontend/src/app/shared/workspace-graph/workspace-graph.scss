@@ -237,12 +237,11 @@
 }
 
 .workspace-graph__node--root {
-  --node-size: 7.5rem;
-
   background: #0f172a;
   border-color: #0f172a;
   color: #fff;
-  padding: 0.35rem;
+  overflow: hidden;
+  padding: 0;
 }
 
 .workspace-graph__node--domain {

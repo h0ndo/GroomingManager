@@ -63,10 +63,14 @@ describe('WorkspaceGraph', () => {
         logoUrl: '/s2.png',
       },
       { id: 'customers', label: 'Kunden', kind: 'domain' as const },
+      { id: 'reports', label: 'Berichte', kind: 'page' as const, logoUrl: '/s2.png' },
     ];
 
     fixture.componentRef.setInput('nodes', graphNodes);
-    fixture.componentRef.setInput('edges', [{ from: 'start', to: 'customers' }]);
+    fixture.componentRef.setInput('edges', [
+      { from: 'start', to: 'customers' },
+      { from: 'start', to: 'reports' },
+    ]);
     fixture.componentRef.setInput('autoLayout', true);
     fixture.detectChanges();
 
@@ -74,12 +78,26 @@ describe('WorkspaceGraph', () => {
     const rootButton = fixture.nativeElement.querySelector(
       '[data-node-id="start"]',
     ) as HTMLButtonElement;
+    const reportButton = fixture.nativeElement.querySelector(
+      '[data-node-id="reports"]',
+    ) as HTMLButtonElement;
     const customerButton = buttonByText(fixture, 'Kunden');
     const rootLogo = rootButton.querySelector('.workspace-graph__logo') as HTMLImageElement | null;
     const rootPosition = component.nodePosition(graphNodes[0]);
     const customerPosition = component.nodePosition(graphNodes[1]);
 
     expect(rootButton.classList).toContain('workspace-graph__node--root');
+    expect(rootButton.classList).toContain('workspace-graph__node--branded-root');
+    expect(reportButton.classList).not.toContain('workspace-graph__node--branded-root');
+    expect(rootLogo?.classList).toContain('workspace-graph__root-logo');
+    expect(rootLogo?.style.getPropertyValue('scale')).toBe('2');
+    expect(reportButton.querySelector('.workspace-graph__logo')?.classList).not.toContain(
+      'workspace-graph__root-logo',
+    );
+    expect(
+      (reportButton.querySelector('.workspace-graph__logo') as HTMLImageElement | null)?.style
+        .scale,
+    ).toBe('');
     expect(rootButton.style.getPropertyValue('--node-size')).toBe('7.5rem');
     expect(customerButton.style.getPropertyValue('--node-size')).toBe('');
     expect(rootLogo).not.toBeNull();

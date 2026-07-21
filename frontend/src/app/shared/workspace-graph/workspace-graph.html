@@ -83,7 +83,14 @@
           (click)="activateNode(node, $event)"
         >
           @if (node.logoUrl) {
-            <img class="workspace-graph__logo" [src]="node.logoUrl" alt="" aria-hidden="true" />
+            <img
+              class="workspace-graph__logo"
+              [class.workspace-graph__root-logo]="node.kind === 'root'"
+              [style.scale]="node.kind === 'root' ? '2' : null"
+              [src]="node.logoUrl"
+              alt=""
+              aria-hidden="true"
+            />
           } @else if (node.avatarUrl) {
             <img class="workspace-graph__avatar" [src]="node.avatarUrl" alt="" aria-hidden="true" />
           } @else {
