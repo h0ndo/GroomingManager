@@ -255,6 +255,19 @@
                     }
                   </div>
                 }
+                @if (canDeleteCustomers()) {
+                  <button
+                    pButton
+                    type="button"
+                    class="customer-profile-read__delete"
+                    severity="danger"
+                    [attr.aria-label]="selectedCustomerLabel() + ' löschen, destruktive Aktion mit Bestätigung'"
+                    (click)="openCustomerDeleteConfirmationPage(customer, activeWorkPageSourceNode(), undefined)"
+                  >
+                    <span pButtonIcon class="pi pi-trash"></span>
+                    <span pButtonLabel>Kund:in löschen</span>
+                  </button>
+                }
                 <button type="button" class="customer-profile-read__back" (click)="returnToCustomerSearch()">
                   <span class="pi pi-arrow-left" aria-hidden="true"></span>
                   Zurück zur Suche
@@ -265,6 +278,36 @@
                 <strong>Detail-Renderer vorbereitet</strong>
                 <p>Kerndaten, Status und Folgeaktionen werden später hier eingebettet.</p>
               </div>
+            }
+          }
+          @case ('delete-confirmation') {
+            @if (selectedCustomer(); as customer) {
+              <section class="customer-delete-confirmation" role="group" [attr.aria-label]="selectedCustomerLabel() + ' löschen bestätigen'">
+                <div class="customer-delete-confirmation__warning" role="alert">
+                  <span class="pi pi-exclamation-triangle" aria-hidden="true"></span>
+                  <div>
+                    <strong>Diese Aktion ist destruktiv.</strong>
+                    <p>Bitte bestätige bewusst, dass {{ selectedCustomerLabel() }} dauerhaft aus der Kundenverwaltung entfernt werden soll.</p>
+                  </div>
+                </div>
+                <dl class="customer-profile-read__fields">
+                  <div>
+                    <dt>Name</dt>
+                    <dd>{{ selectedCustomerLabel() }}</dd>
+                  </div>
+                  <div>
+                    <dt>E-Mail</dt>
+                    <dd>{{ customerProfileFieldValue(customer.email) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Telefon</dt>
+                    <dd>{{ customerProfileFieldValue(customer.phone) }}</dd>
+                  </div>
+                </dl>
+                <p class="customer-profile-read__note">
+                  Nach erfolgreichem Löschen verschwindet die Kund:in aus Suchergebnissen, Favoriten, Detailansicht und dem Workspace-Graphen.
+                </p>
+              </section>
             }
           }
         }

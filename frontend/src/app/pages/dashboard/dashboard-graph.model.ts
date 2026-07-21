@@ -284,8 +284,8 @@ function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
   };
 }
 
-function customerActionNodes(customer: CustomerInstance): WorkspaceGraphNode[] {
-  return [
+function customerActionNodes(customer: CustomerInstance, role: DashboardGraphRole = 'admin'): WorkspaceGraphNode[] {
+  const nodes: WorkspaceGraphNode[] = [
     {
       id: `${customer.id}-profile`,
       label: 'Profil',
@@ -308,7 +308,10 @@ function customerActionNodes(customer: CustomerInstance): WorkspaceGraphNode[] {
       payload: customer,
       description: 'Terminliste dieses konkreten Kunden',
     },
-    {
+  ];
+
+  if (role === 'admin') {
+    nodes.push({
       id: `${customer.id}-delete`,
       label: 'Löschen',
       kind: 'action',
@@ -318,19 +321,22 @@ function customerActionNodes(customer: CustomerInstance): WorkspaceGraphNode[] {
       action: 'custom',
       payload: customer,
       description: 'Diesen Kunden löschen',
-    },
-    {
-      id: `${customer.id}-detach`,
-      label: 'X',
-      kind: 'action',
-      x: 125,
-      y: 285,
-      icon: 'pi-times',
-      action: 'remove-instance',
-      payload: customer,
-      description: 'Kundenknoten aus dem Arbeitsgraphen lösen',
-    },
-  ];
+    });
+  }
+
+  nodes.push({
+    id: `${customer.id}-detach`,
+    label: 'X',
+    kind: 'action',
+    x: 125,
+    y: 285,
+    icon: 'pi-times',
+    action: 'remove-instance',
+    payload: customer,
+    description: 'Kundenknoten aus dem Arbeitsgraphen lösen',
+  });
+
+  return nodes;
 }
 
 function canManageCustomerGraph(role: DashboardGraphRole): boolean {
@@ -444,7 +450,7 @@ export function buildDashboardGraphNodes(
 
   visibleFavoriteCustomers.forEach((customer) => {
     if (expandedNodeIds.has(customer.id)) {
-      nodes.push(...customerActionNodes(customer));
+      nodes.push(...customerActionNodes(customer, role));
     }
   });
 
@@ -479,7 +485,7 @@ export function buildDashboardGraphEdges(
 
   visibleFavoriteCustomers.forEach((customer) => {
     if (expandedNodeIds.has(customer.id)) {
-      edges.push(...customerActionNodes(customer).map((node) => ({ from: customer.id, to: node.id })));
+      edges.push(...customerActionNodes(customer, role).map((node) => ({ from: customer.id, to: node.id })));
     }
   });
 

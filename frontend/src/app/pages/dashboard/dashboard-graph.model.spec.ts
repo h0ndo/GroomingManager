@@ -154,6 +154,20 @@ describe('dashboard graph model', () => {
     );
   });
 
+  it('shows destructive customer delete action nodes only for admins', () => {
+    const expandedNodeIds = new Set(['customers', 'customer-favorites', 'customer-katja-gross']);
+
+    const adminNodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'admin');
+    const adminEdges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'admin');
+    const groomerNodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'groomer');
+    const groomerEdges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'groomer');
+
+    expect(adminNodes.map((node) => node.id)).toContain('customer-katja-gross-delete');
+    expect(adminEdges).toContain({ from: 'customer-katja-gross', to: 'customer-katja-gross-delete' });
+    expect(groomerNodes.map((node) => node.id)).not.toContain('customer-katja-gross-delete');
+    expect(groomerEdges).not.toContain({ from: 'customer-katja-gross', to: 'customer-katja-gross-delete' });
+  });
+
   it('returns every expandable node id for expanding the current flex graph', () => {
     expect(expandableDashboardGraphNodeIds([])).toEqual(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites']);
 

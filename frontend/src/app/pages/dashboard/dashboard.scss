@@ -353,6 +353,24 @@ h1 {
   font-weight: 800;
 }
 
+
+.customer-delete-confirmation__warning {
+  align-items: flex-start;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 1rem;
+  color: #991b1b;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.72rem 0.82rem;
+}
+
+.customer-delete-confirmation__warning p {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
 .work-page-search__empty,
 .work-page-search__refine-hint,
 .work-page-list-stub__empty,

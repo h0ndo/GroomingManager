@@ -794,6 +794,93 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
   }));
 
+  it('lets admins confirm and delete a customer from a customer action node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
+      { customerId: 7, firstName: 'Katja', lastName: 'Gross', email: 'katja.gross@example.local', profileImageBase64: null },
+    ]);
+    fixture.detectChanges();
+
+    openCustomerSearchFromGraph(fixture);
+    setCustomerSearchTerm(fixture, 'katja');
+    flushCustomerSearch('katja', [customerDto(7, 'Katja Gross', { email: 'katja.gross@example.local' })]);
+    expect(customerSearchResultButtons(fixture)).toHaveSize(1);
+    closeActiveWorkPage(fixture);
+
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    closeActiveWorkPage(fixture);
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    buttonByText(fixture, 'Zum Favoriten-Knoten').click();
+    tick(230);
+    fixture.detectChanges();
+    tick(50);
+    fixture.detectChanges();
+
+    graphNodeButton(fixture, 'Löschen').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const confirmationDialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
+    expect(confirmationDialog?.textContent).toContain('Katja Gross löschen');
+    expect(confirmationDialog?.textContent).toContain('Diese Aktion ist destruktiv');
+    expect(confirmationDialog?.textContent).toContain('katja.gross@example.local');
+
+    buttonByText(fixture, 'Endgültig löschen').click();
+    const deleteRequest = httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customers/7`);
+    expect(deleteRequest.request.method).toBe('DELETE');
+    deleteRequest.flush(null);
+    tick(230);
+    fixture.detectChanges();
+    tick(50);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(host.textContent).toContain('Katja Gross gelöscht');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect(customerSearchResultButtons(fixture)).toHaveSize(0);
+    expect(host.textContent).not.toContain('Favoritenstatus: Persönlicher Favorit');
+  }));
+
+  it('does not expose customer delete actions to groomers', fakeAsync(() => {
+    auth.setRoles(['ROLE_groomer']);
+
+    fixture.detectChanges();
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
+      { customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null },
+    ]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    closeActiveWorkPage(fixture);
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(graphNodeLabels(fixture)).not.toContain('Löschen');
+    expect(host.textContent).not.toContain('Kund:in löschen');
+    expect(host.textContent).not.toContain('Endgültig löschen');
+  }));
+
   it('shows a friendly limit message when the favorites API rejects a seventh favorite', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
@@ -872,8 +959,8 @@ describe('Dashboard', () => {
     buttonByText(fixture, 'Focused Work').click();
     fixture.detectChanges();
 
-    expect(graphNodeLabels(fixture)).toEqual(['Start', 'Groomer', 'Kalender', 'Admin', 'Kunden', 'Hunde']);
+    expect(graphNodeLabels(fixture)).toEqual(['Start Schnittstelle 2', 'Groomer', 'Kalender', 'Admin', 'Kunden', 'Hunde']);
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Groomer hinzufügen');
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Start');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Start Schnittstelle 2');
   });
 });

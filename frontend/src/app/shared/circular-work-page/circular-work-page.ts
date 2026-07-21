@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 
-export type CircularWorkPageContentType = 'form' | 'search' | 'list' | 'calendar' | 'detail';
+export type CircularWorkPageContentType = 'form' | 'search' | 'list' | 'calendar' | 'detail' | 'delete-confirmation';
 
 export type CircularWorkPageOrigin = {
   x: number;
@@ -217,6 +217,7 @@ export class CircularWorkPage implements AfterViewInit, OnDestroy {
       list: 'Liste',
       calendar: 'Kalender',
       detail: 'Detailansicht',
+      'delete-confirmation': 'Bestätigung',
     };
 
     return labels[this.contentType];

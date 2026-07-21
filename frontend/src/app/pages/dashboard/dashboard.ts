@@ -130,6 +130,8 @@ export class Dashboard implements OnInit {
   protected readonly customerSearchResults = signal<CustomerListItem[]>([]);
   protected readonly customerSearchBusy = signal(false);
   protected readonly customerSearchError = signal('');
+  protected readonly customerDeleteBusy = signal(false);
+  protected readonly customerDeleteError = signal('');
   protected readonly customerSearchResultLimit = 6;
   protected readonly dailyAgendaItems: AgendaItem[] = [
     { time: '09:00', title: 'Katja Gross · Nala', detail: 'Waschen, Schneiden · 75 min', status: 'Bestätigt' },
@@ -330,8 +332,9 @@ export class Dashboard implements OnInit {
     if (node.id.endsWith('-delete')) {
       const customer = this.customerFromNode(node) ?? this.selectedCustomer();
 
-      if (customer) {
+      if (customer && this.canDeleteCustomers()) {
         this.selectedCustomer.set(customer);
+        this.openCustomerDeleteConfirmationPage(customer, node, selection.sourceOrigin);
       }
 
       this.workspacePanel.set({
@@ -339,7 +342,9 @@ export class Dashboard implements OnInit {
         eyebrow: 'Kundenaktion',
         title: `${customer ? customerDisplayName(customer) : 'Kunde'} löschen`,
         description:
-          'Destruktive Aktionen werden als eigene Aktionsknoten modelliert und können später Bestätigungen, Rechteprüfung und API-Calls auslösen.',
+          customer && this.canDeleteCustomers()
+            ? 'Die Löschbestätigung ist als runde Work-Page geöffnet. Erst die Bestätigung ruft die Backend-Löschfunktion auf.'
+            : 'Diese destruktive Aktion ist nur für Admins verfügbar.',
         node,
       });
       return;
@@ -437,6 +442,44 @@ export class Dashboard implements OnInit {
         if (!this.customerCreateError()) {
           this.updateActiveWorkPageState({ busy: false });
         }
+      },
+    });
+  }
+
+  protected deleteSelectedCustomer(): void {
+    const customer = this.selectedCustomer();
+
+    if (!customer || !this.canDeleteCustomers() || this.customerDeleteBusy()) {
+      return;
+    }
+
+    this.customerDeleteBusy.set(true);
+    this.customerDeleteError.set('');
+    this.updateActiveWorkPageState({ busy: true, error: '' });
+    this.http.delete<void>(`${runtimeConfig.apiBaseUrl}/customers/${customer.id}`).subscribe({
+      next: () => {
+        this.removeDeletedCustomerLocally(customer);
+        this.customerDeleteBusy.set(false);
+        this.customerDeleteError.set('');
+        this.favoriteStatusMessage.set(`${customerDisplayName(customer)} wurde gelöscht.`);
+        this.activeNodeId.set('customers');
+        this.focusNodeAfterWorkPageClose = 'customers';
+        this.workspacePanel.set({
+          mode: 'overview',
+          eyebrow: 'Kundenverwaltung',
+          title: `${customerDisplayName(customer)} gelöscht`,
+          description:
+            'Die Kund:in wurde aus Suche, Favoritenanzeige und Detailkontext entfernt. Der Kundenbereich bleibt ohne kaputte Detailansicht geöffnet.',
+        });
+        this.activeWorkPage.set(null);
+        setTimeout(() => this.focusWorkspaceNode('customers'), 250);
+      },
+      error: (error: HttpErrorResponse) => {
+        const errorMessage = this.customerDeleteErrorMessage(error);
+
+        this.customerDeleteBusy.set(false);
+        this.customerDeleteError.set(errorMessage);
+        this.updateActiveWorkPageState({ busy: false, error: errorMessage });
       },
     });
   }
@@ -572,6 +615,11 @@ export class Dashboard implements OnInit {
   protected handleWorkPagePrimaryAction(): void {
     if (this.activeWorkPage()?.contentType === 'form') {
       this.createCustomer();
+      return;
+    }
+
+    if (this.activeWorkPage()?.contentType === 'delete-confirmation') {
+      this.deleteSelectedCustomer();
     }
   }
 
@@ -1061,7 +1109,30 @@ export class Dashboard implements OnInit {
     this.focusCustomerProfileRegion();
   }
 
-  private activeWorkPageSourceNode(): WorkspaceGraphNode {
+  protected openCustomerDeleteConfirmationPage(
+    customer: CustomerInstance,
+    sourceNode: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
+    this.customerDeleteBusy.set(false);
+    this.customerDeleteError.set('');
+    this.focusNodeAfterWorkPageClose = sourceNode.id;
+    this.activeWorkPage.set({
+      sourceNodeId: sourceNode.id,
+      sourceLabel: sourceNode.label,
+      sourceOrigin,
+      contentType: 'delete-confirmation',
+      title: `${customerDisplayName(customer)} löschen`,
+      description: `Diese Aktion ist destruktiv und entfernt ${customerDisplayName(customer)} aus Kundenliste, Suche, Detailansicht und Favoritenanzeige.`,
+      originLabel: `aus Knoten ${sourceNode.label}`,
+      primaryActionLabel: 'Endgültig löschen',
+      secondaryActionLabel: 'Abbrechen',
+      busy: false,
+      error: '',
+    });
+  }
+
+  protected activeWorkPageSourceNode(): WorkspaceGraphNode {
     const activeWorkPage = this.activeWorkPage();
 
     return {
@@ -1135,6 +1206,38 @@ export class Dashboard implements OnInit {
     const role = this.graphRole();
 
     return role === 'admin' || role === 'groomer';
+  }
+
+  protected canDeleteCustomers(): boolean {
+    return this.graphRole() === 'admin';
+  }
+
+  private removeDeletedCustomerLocally(customer: CustomerInstance): void {
+    this.favoriteCustomers.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
+    this.customerSearchResults.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
+    this.selectedCustomer.update((selectedCustomer) => (selectedCustomer?.id === customer.id ? null : selectedCustomer));
+    this.expandedNodeIds.update((current) => {
+      const next = new Set(current);
+
+      next.delete(customer.id);
+      return next;
+    });
+  }
+
+  private customerDeleteErrorMessage(error: HttpErrorResponse): string {
+    if (error.status === 403) {
+      return 'Nicht erlaubt: Nur Admins dürfen Kund:innen löschen.';
+    }
+
+    if (error.status === 404) {
+      return 'Kund:in wurde nicht gefunden oder ist bereits gelöscht.';
+    }
+
+    if (error.status === 409) {
+      return 'Kund:in kann wegen bestehender Verknüpfungen noch nicht gelöscht werden.';
+    }
+
+    return 'Kund:in konnte nicht gelöscht werden. Bitte versuche es erneut.';
   }
 
   private focusWorkspaceNode(nodeId: string): void {
