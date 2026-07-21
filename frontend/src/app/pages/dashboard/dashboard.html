@@ -73,8 +73,10 @@
         [error]="workPage.error ?? ''"
         [empty]="workPage.empty ?? false"
         [preserveContentWhileBusy]="workPage.contentType === 'search'"
+        [actionButtons]="workPageActions(workPage)"
         (primaryAction)="handleWorkPagePrimaryAction()"
         (secondaryAction)="cancelActiveWorkPage()"
+        (pageAction)="handleWorkPageAction($event)"
         (closed)="clearActiveWorkPage()"
       >
         @switch (workPage.contentType) {
@@ -238,40 +240,13 @@
                   <p class="customer-profile-read__note">{{ customer.note }}</p>
                 }
                 @if (canManageCustomers()) {
-                  <div class="customer-profile-read__favorite" role="group" [attr.aria-label]="selectedCustomerLabel() + ' Favoritenstatus'">
-                    <span>{{ favoriteStatusLabel(customer) }}</span>
-                    <button
-                      type="button"
-                      class="favorite-toggle"
-                      [disabled]="isFavoriteOperationBusy(customer)"
-                      [attr.aria-pressed]="isFavoriteCustomer(customer)"
-                      (click)="toggleFavoriteCustomer(customer, $event)"
-                    >
-                      <span class="pi" [class.pi-star-fill]="isFavoriteCustomer(customer)" [class.pi-star]="!isFavoriteCustomer(customer)" aria-hidden="true"></span>
-                      {{ favoriteActionLabel(customer) }}
-                    </button>
-                    @if (favoriteStatusMessage()) {
-                      <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
-                    }
-                  </div>
+                  <p class="customer-profile-read__favorite-state" role="status">
+                    {{ favoriteStatusLabel(customer) }}
+                  </p>
                 }
-                @if (canDeleteCustomers()) {
-                  <button
-                    pButton
-                    type="button"
-                    class="customer-profile-read__delete"
-                    severity="danger"
-                    [attr.aria-label]="selectedCustomerLabel() + ' löschen, destruktive Aktion mit Bestätigung'"
-                    (click)="openCustomerDeleteConfirmationPage(customer, activeWorkPageSourceNode(), undefined)"
-                  >
-                    <span pButtonIcon class="pi pi-trash"></span>
-                    <span pButtonLabel>Kund:in löschen</span>
-                  </button>
+                @if (favoriteStatusMessage()) {
+                  <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
                 }
-                <button type="button" class="customer-profile-read__back" (click)="returnToCustomerSearch()">
-                  <span class="pi pi-arrow-left" aria-hidden="true"></span>
-                  Zurück zur Suche
-                </button>
               </article>
             } @else {
               <div class="work-page-detail-stub" aria-label="Detailansicht Beispielinhalt">

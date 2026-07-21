@@ -9,6 +9,7 @@ import { AuthService } from '../../core/auth.service';
 import { runtimeConfig } from '../../core/runtime-config';
 import {
   CircularWorkPage,
+  CircularWorkPageAction,
   CircularWorkPageContentType,
   CircularWorkPageOrigin,
 } from '../../shared/circular-work-page/circular-work-page';
@@ -686,6 +687,109 @@ export class Dashboard implements OnInit {
 
     if (this.activeWorkPage()?.contentType === 'delete-confirmation') {
       this.deleteSelectedCustomer();
+    }
+  }
+
+  protected workPageActions(workPage: WorkspaceWorkPage): CircularWorkPageAction[] {
+    const actions: CircularWorkPageAction[] = [
+      {
+        id: 'close',
+        label: workPage.secondaryActionLabel,
+        icon: 'pi-times',
+        severity: 'contrast',
+        closes: true,
+      },
+    ];
+
+    const selectedCustomer = this.selectedCustomer();
+
+    if (workPage.contentType === 'detail' && selectedCustomer) {
+      const customer = selectedCustomer;
+
+      if (workPage.sourceNodeId === 'customer-search') {
+        actions.push({
+          id: 'back-to-search',
+          label: 'Zurück zur Suche',
+          icon: 'pi-arrow-left',
+          severity: 'secondary',
+        });
+      }
+
+      if (this.canManageCustomers()) {
+        actions.push({
+          id: 'favorite-toggle',
+          label: `${customerDisplayName(customer)}: ${this.favoriteActionLabel(customer)}`,
+          icon: this.isFavoriteCustomer(customer) ? 'pi-star-fill' : 'pi-star',
+          severity: this.isFavoriteCustomer(customer) ? 'warn' : 'success',
+          disabled: this.isFavoriteOperationBusy(customer),
+          pressed: this.isFavoriteCustomer(customer),
+        });
+      }
+
+      if (this.canDeleteCustomers()) {
+        actions.push({
+          id: 'delete-customer',
+          label: `${customerDisplayName(customer)} löschen, destruktive Aktion mit Bestätigung`,
+          icon: 'pi-trash',
+          severity: 'danger',
+        });
+      }
+
+      return actions;
+    }
+
+    if (workPage.contentType === 'form' && workPage.primaryActionLabel) {
+      actions.push({
+        id: 'primary',
+        label: workPage.primaryActionLabel,
+        icon: 'pi-check',
+        severity: 'primary',
+        disabled: workPage.busy,
+      });
+    }
+
+    if (workPage.contentType === 'delete-confirmation' && workPage.primaryActionLabel) {
+      actions.push({
+        id: 'primary',
+        label: workPage.primaryActionLabel,
+        icon: 'pi-trash',
+        severity: 'danger',
+        disabled: workPage.busy,
+      });
+    }
+
+    return actions;
+  }
+
+  protected handleWorkPageAction(actionId: string): void {
+    if (actionId === 'close') {
+      this.cancelActiveWorkPage();
+      return;
+    }
+
+    if (actionId === 'primary') {
+      this.handleWorkPagePrimaryAction();
+      return;
+    }
+
+    const selectedCustomer = this.selectedCustomer();
+
+    if (actionId === 'favorite-toggle' && selectedCustomer) {
+      this.toggleFavoriteCustomer(selectedCustomer);
+      return;
+    }
+
+    if (actionId === 'delete-customer' && selectedCustomer) {
+      this.openCustomerDeleteConfirmationPage(
+        selectedCustomer,
+        this.activeWorkPageSourceNode(),
+        undefined,
+      );
+      return;
+    }
+
+    if (actionId === 'back-to-search') {
+      this.returnToCustomerSearch();
     }
   }
 

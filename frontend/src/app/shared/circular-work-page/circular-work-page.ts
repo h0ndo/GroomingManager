@@ -14,6 +14,16 @@ import {
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 
+export type CircularWorkPageAction = {
+  id: string;
+  label: string;
+  icon: string;
+  severity?: 'primary' | 'secondary' | 'success' | 'info' | 'warn' | 'danger' | 'help' | 'contrast';
+  disabled?: boolean;
+  pressed?: boolean;
+  closes?: boolean;
+};
+
 export type CircularWorkPageContentType = 'form' | 'search' | 'list' | 'calendar' | 'detail' | 'delete-confirmation';
 
 export type CircularWorkPageOrigin = {
@@ -38,6 +48,7 @@ export class CircularWorkPage implements AfterViewInit, OnDestroy {
   @Input() sourceOrigin?: CircularWorkPageOrigin;
   @Input() primaryActionLabel = 'Speichern';
   @Input() secondaryActionLabel = 'Abbrechen';
+  @Input() actionButtons: readonly CircularWorkPageAction[] = [];
   @Input({ transform: booleanAttribute }) busy = false;
   @Input() error = '';
   @Input({ transform: booleanAttribute }) empty = false;
@@ -45,6 +56,7 @@ export class CircularWorkPage implements AfterViewInit, OnDestroy {
 
   @Output() primaryAction = new EventEmitter<void>();
   @Output() secondaryAction = new EventEmitter<void>();
+  @Output() pageAction = new EventEmitter<string>();
   @Output() closed = new EventEmitter<void>();
 
   @ViewChild('dialog', { static: true }) private dialog?: ElementRef<HTMLElement>;
@@ -122,6 +134,18 @@ export class CircularWorkPage implements AfterViewInit, OnDestroy {
   protected requestSecondaryAction(): void {
     this.secondaryAction.emit();
     this.startClose();
+  }
+
+  protected requestPageAction(action: CircularWorkPageAction): void {
+    if (action.disabled || this.isClosing()) {
+      return;
+    }
+
+    this.pageAction.emit(action.id);
+
+    if (action.closes) {
+      this.startClose();
+    }
   }
 
   protected handleDialogKeydown(event: KeyboardEvent): void {

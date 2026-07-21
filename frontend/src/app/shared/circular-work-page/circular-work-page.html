@@ -58,29 +58,47 @@
     </div>
 
     <div class="circular-work-page__actions" aria-label="Work-Page-Aktionen">
-      <button
-        pButton
-        type="button"
-        class="circular-work-page__action circular-work-page__action--secondary"
-        severity="secondary"
-        [attr.aria-label]="secondaryActionLabel"
-        (click)="requestSecondaryAction()"
-      >
-        <span pButtonIcon class="pi pi-times"></span>
-        <span pButtonLabel class="circular-work-page__action-label">{{ secondaryActionLabel }}</span>
-      </button>
-      @if (primaryActionLabel) {
+      @if (actionButtons.length > 0) {
+        @for (action of actionButtons; track action.id) {
+          <button
+            pButton
+            type="button"
+            class="circular-work-page__action"
+            [severity]="action.severity ?? 'secondary'"
+            [disabled]="action.disabled"
+            [attr.aria-label]="action.label"
+            [attr.aria-pressed]="action.pressed === undefined ? null : action.pressed"
+            (click)="requestPageAction(action)"
+          >
+            <span pButtonIcon class="pi {{ action.icon }}"></span>
+            <span pButtonLabel class="circular-work-page__action-label">{{ action.label }}</span>
+          </button>
+        }
+      } @else {
         <button
           pButton
           type="button"
-          class="circular-work-page__action circular-work-page__action--primary"
-          [attr.aria-label]="primaryActionLabel"
-          [disabled]="busy"
-          (click)="requestPrimaryAction()"
+          class="circular-work-page__action circular-work-page__action--secondary"
+          severity="secondary"
+          [attr.aria-label]="secondaryActionLabel"
+          (click)="requestSecondaryAction()"
         >
-          <span pButtonIcon class="pi pi-check"></span>
-          <span pButtonLabel class="circular-work-page__action-label">{{ primaryActionLabel }}</span>
+          <span pButtonIcon class="pi pi-times"></span>
+          <span pButtonLabel class="circular-work-page__action-label">{{ secondaryActionLabel }}</span>
         </button>
+        @if (primaryActionLabel) {
+          <button
+            pButton
+            type="button"
+            class="circular-work-page__action circular-work-page__action--primary"
+            [attr.aria-label]="primaryActionLabel"
+            [disabled]="busy"
+            (click)="requestPrimaryAction()"
+          >
+            <span pButtonIcon class="pi pi-check"></span>
+            <span pButtonLabel class="circular-work-page__action-label">{{ primaryActionLabel }}</span>
+          </button>
+        }
       }
     </div>
   </section>

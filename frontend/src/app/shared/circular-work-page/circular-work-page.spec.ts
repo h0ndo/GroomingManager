@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
-import { CircularWorkPage } from './circular-work-page';
+import { CircularWorkPage, CircularWorkPageAction } from './circular-work-page';
 
 @Component({
   imports: [CircularWorkPage],
@@ -15,6 +15,7 @@ import { CircularWorkPage } from './circular-work-page';
       originLabel="aus Knoten Kund:innen"
       [primaryActionLabel]="primaryActionLabel()"
       secondaryActionLabel="Schließen"
+      [actionButtons]="actionButtons()"
       [busy]="busy()"
       [error]="error()"
       [empty]="empty()"
@@ -28,6 +29,7 @@ class CircularWorkPageHost {
   readonly error = signal('');
   readonly empty = signal(false);
   readonly primaryActionLabel = signal('');
+  readonly actionButtons = signal<CircularWorkPageAction[]>([]);
 }
 
 function centerOf(rect: DOMRect): { x: number; y: number } {
@@ -88,7 +90,10 @@ describe('CircularWorkPage', () => {
   });
 
   it('keeps persistent actions circular and named while placing them radially bottom-right', () => {
-    fixture.componentInstance.primaryActionLabel.set('Speichern');
+    fixture.componentInstance.actionButtons.set([
+      { id: 'close', label: 'Schließen', icon: 'pi-times', severity: 'contrast', closes: true },
+      { id: 'save', label: 'Speichern', icon: 'pi-check', severity: 'primary' },
+    ]);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
@@ -121,5 +126,18 @@ describe('CircularWorkPage', () => {
     expect(offsetY).withContext('actions sit below panel center').toBeGreaterThan(0);
     expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeGreaterThan(25);
     expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeLessThan(55);
+  });
+
+  it('keeps title and description visually slim and single line', () => {
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const title = host.querySelector<HTMLElement>('.circular-work-page__dialog h2');
+    const description = host.querySelector<HTMLElement>('.circular-work-page__description');
+
+    expect(getComputedStyle(title!).whiteSpace).toBe('nowrap');
+    expect(getComputedStyle(title!).textOverflow).toBe('ellipsis');
+    expect(getComputedStyle(description!).whiteSpace).toBe('nowrap');
+    expect(getComputedStyle(description!).textOverflow).toBe('ellipsis');
   });
 });

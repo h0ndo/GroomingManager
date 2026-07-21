@@ -93,7 +93,6 @@ h1 {
 .favorite-toggle:focus-visible,
 .work-page-list-stub__item:focus-visible,
 .customer-profile-read:focus-visible,
-.customer-profile-read__back:focus-visible,
 .work-page-agenda-stub button:focus-visible {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgb(37 99 235 / 14%);
@@ -234,16 +233,16 @@ h1 {
 
 .customer-profile-read__mode {
   align-items: center;
-  background: #ecfdf5;
-  border: 1px solid #86efac;
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   color: #047857;
   display: inline-flex;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 900;
   gap: 0.4rem;
   justify-self: start;
-  padding: 0.38rem 0.58rem;
+  padding: 0;
 }
 
 .customer-profile-read__fields {
@@ -286,7 +285,7 @@ h1 {
   padding: 0.56rem 0.65rem;
 }
 
-.customer-profile-read__favorite,
+.customer-profile-read__favorite-state,
 .favorite-status {
   background: #f8fafc;
   border: 1px solid #dbeafe;
@@ -294,10 +293,11 @@ h1 {
   color: #334155;
   display: grid;
   gap: 0.55rem;
+  margin: 0;
   padding: 0.7rem 0.8rem;
 }
 
-.customer-profile-read__favorite > span,
+.customer-profile-read__favorite-state,
 .work-page-search__favorite-state {
   color: #047857;
   font-size: 0.8rem;
@@ -329,21 +329,6 @@ h1 {
 .favorite-toggle:disabled {
   cursor: wait;
   opacity: 0.65;
-}
-
-.customer-profile-read__back {
-  align-items: center;
-  background: #ecfdf5;
-  border: 1px solid #86efac;
-  border-radius: 999px;
-  color: #047857;
-  display: inline-flex;
-  font: inherit;
-  font-weight: 900;
-  gap: 0.45rem;
-  justify-self: start;
-  min-height: 44px;
-  padding: 0.65rem 0.95rem;
 }
 
 .work-page-search__item small,

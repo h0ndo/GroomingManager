@@ -75,13 +75,14 @@
   max-height: 100%;
   max-width: min(100%, 31.5rem);
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   text-align: center;
 }
 
 .circular-work-page__header {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.24rem;
+  min-width: 0;
 }
 
 .circular-work-page__eyebrow {
@@ -100,16 +101,22 @@
 }
 
 .circular-work-page__dialog h2 {
-  font-size: clamp(1.25rem, 3.1vw, 1.82rem);
-  line-height: 1.08;
+  font-size: clamp(1.18rem, 2.8vw, 1.72rem);
+  line-height: 1.04;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .circular-work-page__description {
   color: #475569;
-  font-size: clamp(0.82rem, 1.6vw, 0.94rem);
-  line-height: 1.35;
+  font-size: clamp(0.78rem, 1.35vw, 0.88rem);
+  line-height: 1.25;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .circular-work-page__content {
@@ -117,7 +124,7 @@
   margin-block-start: 0.25rem;
   min-height: 0;
   overflow: auto;
-  padding: 0.1rem 0.25rem 0.45rem;
+  padding: 0.1rem 0.65rem calc(var(--work-page-action-size) + 1.1rem) 0.25rem;
   scrollbar-gutter: stable;
 }
 
@@ -154,9 +161,9 @@
   display: flex;
   gap: 0.5rem;
   justify-content: center;
-  left: 72%;
+  left: 78%;
   position: absolute;
-  top: 83%;
+  top: 78%;
   transform: translate(-50%, -50%);
 }
 

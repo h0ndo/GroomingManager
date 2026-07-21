@@ -453,6 +453,14 @@ describe('Dashboard', () => {
     expect(dialog?.textContent).toContain('Zurück zur Suche');
     expect(dialog?.textContent).toContain('Nicht angeheftet');
     expect(dialog?.textContent).toContain('Als Favorit anheften');
+    expect(dialog?.querySelector('.customer-profile-read .favorite-toggle')).toBeNull();
+    expect(dialog?.querySelector('.customer-profile-read__back')).toBeNull();
+    expect(dialog?.querySelector('.customer-profile-read__delete')).toBeNull();
+    expect(
+      Array.from(dialog!.querySelectorAll<HTMLButtonElement>('.circular-work-page__action')).map(
+        (button) => button.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Schließen', 'Zurück zur Suche', 'Mila Muster: Als Favorit anheften']);
     expect(dialog?.textContent).not.toContain('Speichern');
     expect(profile?.getAttribute('aria-label')).toBe('Mila Muster Kundenprofil im Lesemodus');
     expect(document.activeElement).toBe(profile);
