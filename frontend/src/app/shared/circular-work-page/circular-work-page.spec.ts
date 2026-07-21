@@ -30,6 +30,13 @@ class CircularWorkPageHost {
   readonly primaryActionLabel = signal('');
 }
 
+function centerOf(rect: DOMRect): { x: number; y: number } {
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
 describe('CircularWorkPage', () => {
   let fixture: ComponentFixture<CircularWorkPageHost>;
 
@@ -78,5 +85,41 @@ describe('CircularWorkPage', () => {
 
     host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('[role="alert"]')?.textContent).toContain('Kund:innen konnten nicht geladen werden. Erneut versuchen.');
+  });
+
+  it('keeps persistent actions circular and named while placing them radially bottom-right', () => {
+    fixture.componentInstance.primaryActionLabel.set('Speichern');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const dialog = host.querySelector<HTMLElement>('.circular-work-page__dialog');
+    const actions = host.querySelector<HTMLElement>('.circular-work-page__actions');
+    const actionButtons = Array.from(host.querySelectorAll<HTMLButtonElement>('.circular-work-page__action'));
+
+    expect(dialog).withContext('dialog exists').not.toBeNull();
+    expect(actions).withContext('action group exists').not.toBeNull();
+    expect(actionButtons.length).toBe(2);
+    expect(actionButtons.map((button) => button.getAttribute('aria-label'))).toEqual(['Schließen', 'Speichern']);
+
+    for (const button of actionButtons) {
+      const style = getComputedStyle(button);
+      const width = Number.parseFloat(style.width);
+      const height = Number.parseFloat(style.height);
+
+      expect(Math.abs(width - height)).withContext('action is square before radius').toBeLessThan(0.5);
+      expect(style.borderRadius).withContext('action is visually circular').toBe('50%');
+    }
+
+    const dialogCenter = centerOf(dialog!.getBoundingClientRect());
+    const actionsCenter = centerOf(actions!.getBoundingClientRect());
+    const offsetX = actionsCenter.x - dialogCenter.x;
+    const offsetY = actionsCenter.y - dialogCenter.y;
+
+    const radialAngleDegrees = (Math.atan2(offsetY, offsetX) * 180) / Math.PI;
+
+    expect(offsetX).withContext('actions sit right of panel center').toBeGreaterThan(0);
+    expect(offsetY).withContext('actions sit below panel center').toBeGreaterThan(0);
+    expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeGreaterThan(25);
+    expect(radialAngleDegrees).withContext('actions follow the roughly bottom-right radial').toBeLessThan(55);
   });
 });

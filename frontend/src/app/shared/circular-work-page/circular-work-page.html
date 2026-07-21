@@ -67,7 +67,7 @@
         (click)="requestSecondaryAction()"
       >
         <span pButtonIcon class="pi pi-times"></span>
-        <span pButtonLabel>{{ secondaryActionLabel }}</span>
+        <span pButtonLabel class="circular-work-page__action-label">{{ secondaryActionLabel }}</span>
       </button>
       @if (primaryActionLabel) {
         <button
@@ -79,7 +79,7 @@
           (click)="requestPrimaryAction()"
         >
           <span pButtonIcon class="pi pi-check"></span>
-          <span pButtonLabel>{{ primaryActionLabel }}</span>
+          <span pButtonLabel class="circular-work-page__action-label">{{ primaryActionLabel }}</span>
         </button>
       }
     </div>

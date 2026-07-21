@@ -25,15 +25,17 @@
 }
 
 .circular-work-page__dialog {
+  --work-page-action-size: clamp(2.75rem, 6vw, 3.15rem);
+
   animation: circular-work-page-spawn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   background:
-    radial-gradient(circle at 24% 16%, rgb(22 163 74 / 16%), transparent 30%),
-    linear-gradient(135deg, #fff 0%, #f8fafc 100%);
-  border: 1px solid #bbf7d0;
+    radial-gradient(circle at 28% 16%, rgb(22 163 74 / 10%), transparent 28%),
+    linear-gradient(135deg, #fff 0%, #fbfdfc 100%);
+  border: 1px solid rgb(187 247 208 / 74%);
   border-radius: 50%;
   box-shadow:
-    0 0 0 8px rgb(22 163 74 / 10%),
-    0 34px 90px rgb(15 23 42 / 28%);
+    0 0 0 5px rgb(22 163 74 / 7%),
+    0 28px 78px rgb(15 23 42 / 24%);
   color: #0f172a;
   display: grid;
   height: min(74vh, 42rem);
@@ -41,7 +43,7 @@
   max-width: calc(100vw - 2rem);
   min-height: 30rem;
   outline: none;
-  padding: clamp(2.3rem, 5vw, 4rem);
+  padding: clamp(2rem, 4.4vw, 3.15rem) clamp(2.35rem, 5.2vw, 4rem) clamp(5.4rem, 10vw, 6.2rem);
   pointer-events: auto;
   position: relative;
   width: min(74vh, 42rem);
@@ -65,13 +67,13 @@
 }
 
 .circular-work-page__inner {
-  align-self: center;
+  align-self: stretch;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.9rem;
+  gap: 0.55rem;
   margin-inline: auto;
   max-height: 100%;
-  max-width: min(100%, 34rem);
+  max-width: min(100%, 31.5rem);
   min-width: 0;
   overflow: hidden;
   text-align: center;
@@ -79,35 +81,43 @@
 
 .circular-work-page__header {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.42rem;
 }
 
 .circular-work-page__eyebrow {
+  block-size: 1px;
+  clip-path: inset(50%);
   color: #15803d;
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.14em;
   margin: 0;
+  overflow: hidden;
+  position: absolute;
   text-transform: uppercase;
+  white-space: nowrap;
+  inline-size: 1px;
 }
 
 .circular-work-page__dialog h2 {
-  font-size: clamp(1.55rem, 4vw, 2.25rem);
-  line-height: 1.05;
+  font-size: clamp(1.25rem, 3.1vw, 1.82rem);
+  line-height: 1.08;
   margin: 0;
 }
 
 .circular-work-page__description {
   color: #475569;
-  line-height: 1.45;
+  font-size: clamp(0.82rem, 1.6vw, 0.94rem);
+  line-height: 1.35;
   margin: 0;
 }
 
 .circular-work-page__content {
-  margin-block-start: 0.5rem;
+  font-size: 0.92rem;
+  margin-block-start: 0.25rem;
   min-height: 0;
   overflow: auto;
-  padding: 0.15rem 0.35rem 0.35rem;
+  padding: 0.1rem 0.25rem 0.45rem;
   scrollbar-gutter: stable;
 }
 
@@ -120,8 +130,8 @@
 
 .circular-work-page__state {
   align-items: center;
-  background: rgb(255 255 255 / 74%);
-  border: 1px dashed #86efac;
+  background: rgb(255 255 255 / 68%);
+  border: 1px dashed rgb(134 239 172 / 72%);
   border-radius: 1.25rem;
   color: #334155;
   display: grid;
@@ -141,18 +151,35 @@
 
 .circular-work-page__actions {
   align-items: center;
-  bottom: 7%;
   display: flex;
-  gap: 0.65rem;
-  justify-content: flex-end;
+  gap: 0.5rem;
+  justify-content: center;
+  left: 72%;
   position: absolute;
-  right: 7%;
+  top: 83%;
+  transform: translate(-50%, -50%);
 }
 
 .circular-work-page__action {
-  border-radius: 999px;
+  align-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: inline-flex;
+  height: var(--work-page-action-size);
+  justify-content: center;
   min-height: 44px;
   min-width: 44px;
+  padding: 0;
+  width: var(--work-page-action-size);
+}
+
+.circular-work-page__action-label {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
 }
 
 .circular-work-page__action:focus-visible {
@@ -198,13 +225,13 @@
     border-radius: 2rem;
     height: min(100%, calc(100vh - 1.5rem));
     min-height: min(34rem, calc(100vh - 1.5rem));
-    padding: 2rem 1.25rem 5.8rem;
+    padding: 1.55rem 1.15rem 5.5rem;
     width: auto;
   }
 
   .circular-work-page__actions {
-    bottom: 1.2rem;
-    right: 1.2rem;
+    inset: auto 1.2rem 1.2rem auto;
+    transform: none;
   }
 }
 
