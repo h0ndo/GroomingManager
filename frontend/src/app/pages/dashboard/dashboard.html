@@ -7,11 +7,11 @@
     </div>
     <div class="dashboard__actions">
       <div class="layout-switch" aria-label="Arbeitsgraph-Modus">
-        <button pButton type="button" [severity]="layoutMode() === 'focused-work' ? 'primary' : 'secondary'" (click)="setLayoutMode('focused-work')">
+        <button pButton type="button" [severity]="layoutMode() === 'focused-work' ? 'primary' : 'secondary'" [disabled]="graphInteractionLocked()" (click)="setLayoutMode('focused-work')">
           <span pButtonIcon class="pi pi-compass"></span>
           <span pButtonLabel>Focused Work</span>
         </button>
-        <button pButton type="button" [severity]="layoutMode() === 'custom-flex' ? 'primary' : 'secondary'" (click)="setLayoutMode('custom-flex')">
+        <button pButton type="button" [severity]="layoutMode() === 'custom-flex' ? 'primary' : 'secondary'" [disabled]="graphInteractionLocked()" (click)="setLayoutMode('custom-flex')">
           <span pButtonIcon class="pi pi-arrows-alt"></span>
           <span pButtonLabel>Custom Flex</span>
         </button>
@@ -19,11 +19,11 @@
 
       @if (layoutMode() === 'custom-flex') {
         <div class="flex-tree-controls" aria-label="Custom-Flex-Knotensteuerung">
-          <button pButton type="button" severity="secondary" (click)="expandEntireGraph()">
+          <button pButton type="button" severity="secondary" [disabled]="graphInteractionLocked()" (click)="expandEntireGraph()">
             <span pButtonIcon class="pi pi-plus-circle"></span>
             <span pButtonLabel>Alles aufklappen</span>
           </button>
-          <button pButton type="button" severity="secondary" (click)="collapseEntireGraph()">
+          <button pButton type="button" severity="secondary" [disabled]="graphInteractionLocked()" (click)="collapseEntireGraph()">
             <span pButtonIcon class="pi pi-minus-circle"></span>
             <span pButtonLabel>Alles zuklappen</span>
           </button>
@@ -46,16 +46,17 @@
 
   <div class="workspace-shell">
     <app-workspace-graph
-      [nodes]="graphNodes()"
-      [edges]="graphEdges()"
-      [activeNodeId]="activeNodeId()"
-      [centeredNodeId]="layoutMode() === 'focused-work' ? activeNodeId() : ''"
-      [lockAnchoredNodesToAutoLayout]="layoutMode() === 'focused-work'"
-      [showFitToViewControl]="layoutMode() === 'custom-flex'"
-      [expandedNodeIds]="expandedNodeIds()"
-      [expandableNodeIds]="expandableDashboardGraphNodeIds(favoriteCustomers(), graphRole())"
+      [nodes]="presentedGraphNodes()"
+      [edges]="presentedGraphEdges()"
+      [activeNodeId]="presentedActiveNodeId()"
+      [centeredNodeId]="presentedCenteredNodeId()"
+      [lockAnchoredNodesToAutoLayout]="presentedLockAnchoredNodesToAutoLayout()"
+      [showFitToViewControl]="presentedShowFitToViewControl()"
+      [expandedNodeIds]="presentedExpandedNodeIds()"
+      [expandableNodeIds]="presentedExpandableNodeIds()"
       [attr.inert]="hasActiveWorkPage() ? '' : null"
       [attr.aria-hidden]="hasActiveWorkPage() ? 'true' : null"
+      [interactionLocked]="graphInteractionLocked()"
       (nodeActivated)="handleGraphSelection($event)"
     ></app-workspace-graph>
 

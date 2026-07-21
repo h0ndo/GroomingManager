@@ -99,6 +99,7 @@ export class WorkspaceGraph {
   @Input() centeredNodeId = '';
   @Input() expandedNodeIds: ReadonlySet<string> = new Set();
   @Input() expandableNodeIds: readonly string[] = [];
+  @Input() interactionLocked = false;
 
   @Output() nodeActivated = new EventEmitter<WorkspaceGraphSelection>();
 
@@ -362,7 +363,7 @@ export class WorkspaceGraph {
       [`workspace-graph__node--${node.kind}`]: true,
       'workspace-graph__node--branded-root': node.kind === 'root' && !!node.logoUrl,
       'workspace-graph__node--active': node.id === this.activeNodeId,
-      'workspace-graph__node--draggable': this.isNodeDraggable(node),
+      'workspace-graph__node--draggable': !this.interactionLocked && this.isNodeDraggable(node),
       'workspace-graph__node--expanded': this.isNodeExpanded(node),
       'workspace-graph__node--collapsed': this.isNodeExpandable(node) && !this.isNodeExpanded(node),
       'workspace-graph__node--avatar': !!node.avatarUrl,
@@ -435,6 +436,10 @@ export class WorkspaceGraph {
   }
 
   protected nodeActionHint(node: WorkspaceGraphNode): string {
+    if (this.interactionLocked) {
+      return 'Während eine Work-Page geöffnet ist, ist dieser Hintergrundknoten nur Orientierung und nicht interaktiv';
+    }
+
     if (this.isNodeExpandable(node)) {
       if (node.kind === 'domain') {
         return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; es wird kein separates Fenster geöffnet';
@@ -465,6 +470,10 @@ export class WorkspaceGraph {
   }
 
   protected activateNode(node: WorkspaceGraphNode, event?: Event): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (this.suppressNextClickNodeId === node.id) {
       this.suppressNextClickNodeId = null;
       return;
@@ -505,12 +514,20 @@ export class WorkspaceGraph {
   }
 
   protected resetPan(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     this.pan.set({ x: 0, y: 0 });
     this.fitStatusMessage.set('Ansicht zurückgesetzt.');
     this.isFitPannable.set(false);
   }
 
   protected resetLayout(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     this.pan.set({ x: 0, y: 0 });
     this.zoom.set(1);
     this.nodePositions.set({});
@@ -519,6 +536,10 @@ export class WorkspaceGraph {
   }
 
   protected fitToView(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (this.nodes.length === 0) {
       this.pan.set({ x: 0, y: 0 });
       this.zoom.set(1);
@@ -564,14 +585,26 @@ export class WorkspaceGraph {
   }
 
   protected zoomIn(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     this.setZoom(this.zoom() + 0.1);
   }
 
   protected zoomOut(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     this.setZoom(this.zoom() - 0.1);
   }
 
   protected handleWheel(event: WheelEvent): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (!event.ctrlKey && !event.metaKey) {
       return;
     }
@@ -581,6 +614,10 @@ export class WorkspaceGraph {
   }
 
   protected beginNodeDrag(event: PointerEvent, node: WorkspaceGraphNode): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (event.button !== 0) {
       return;
     }
@@ -606,6 +643,10 @@ export class WorkspaceGraph {
   }
 
   protected beginPan(event: PointerEvent): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (event.button !== 0) {
       return;
     }
@@ -623,6 +664,10 @@ export class WorkspaceGraph {
   }
 
   protected movePan(event: PointerEvent): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     if (this.nodeDragStart && this.nodeDragStart.pointerId === event.pointerId) {
       const deltaX = event.clientX - this.nodeDragStart.startX;
       const deltaY = event.clientY - this.nodeDragStart.startY;
@@ -654,6 +699,14 @@ export class WorkspaceGraph {
   }
 
   protected endPan(event: PointerEvent): void {
+    if (this.interactionLocked) {
+      this.nodeDragStart = null;
+      this.dragStart = null;
+      this.isDraggingNode.set(false);
+      this.isPanning.set(false);
+      return;
+    }
+
     if (this.nodeDragStart && this.nodeDragStart.pointerId === event.pointerId) {
       if (this.nodeDragStart.moved) {
         this.suppressNextClickNodeId = this.nodeDragStart.nodeId;
@@ -674,6 +727,10 @@ export class WorkspaceGraph {
 
   @HostListener('window:keydown.escape')
   protected handleEscape(): void {
+    if (this.interactionLocked) {
+      return;
+    }
+
     this.resetPan();
   }
 
@@ -839,6 +896,10 @@ export class WorkspaceGraph {
   }
 
   private isNodeDraggable(node: WorkspaceGraphNode): boolean {
-    return !this.lockAnchoredNodesToAutoLayout && this.parentEdge(node)?.from === 'start';
+    return (
+      !this.interactionLocked &&
+      !this.lockAnchoredNodesToAutoLayout &&
+      this.parentEdge(node)?.from === 'start'
+    );
   }
 }

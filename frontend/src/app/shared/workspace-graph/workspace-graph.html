@@ -1,20 +1,27 @@
-<section class="workspace-graph" role="region" aria-label="Arbeitsgraph: Navigation, Beziehungen und Aktionen">
+<section
+  class="workspace-graph"
+  [class.workspace-graph--locked]="interactionLocked"
+  role="region"
+  aria-label="Arbeitsgraph: Navigation, Beziehungen und Aktionen"
+  [attr.aria-disabled]="interactionLocked ? 'true' : null"
+>
   <header class="workspace-graph__toolbar">
     <div>
       <p class="workspace-graph__eyebrow">Arbeitsgraph</p>
       <h2>Navigation, Beziehungen und Aktionen</h2>
     </div>
     <div class="workspace-graph__controls" aria-label="Zoom und Layout">
-      <button type="button" class="workspace-graph__control" (click)="zoomOut()" aria-label="Rauszoomen">−</button>
+      <button type="button" class="workspace-graph__control" [disabled]="interactionLocked" (click)="zoomOut()" aria-label="Rauszoomen">−</button>
       <span class="workspace-graph__zoom">{{ zoomPercent() }}%</span>
-      <button type="button" class="workspace-graph__control" (click)="zoomIn()" aria-label="Reinzoomen">+</button>
+      <button type="button" class="workspace-graph__control" [disabled]="interactionLocked" (click)="zoomIn()" aria-label="Reinzoomen">+</button>
       @if (showFitToViewControl) {
-        <button type="button" class="workspace-graph__reset" (click)="fitToView()">Alles einpassen</button>
+        <button type="button" class="workspace-graph__reset" [disabled]="interactionLocked" (click)="fitToView()">Alles einpassen</button>
       }
-      <button type="button" class="workspace-graph__reset" (click)="resetLayout()">Layout zurücksetzen</button>
+      <button type="button" class="workspace-graph__reset" [disabled]="interactionLocked" (click)="resetLayout()">Layout zurücksetzen</button>
       <button
         type="button"
         class="workspace-graph__reset"
+        [disabled]="interactionLocked"
         [attr.aria-expanded]="showLinearView()"
         aria-controls="workspace-graph-linear-view"
         (click)="toggleLinearView()"
@@ -79,6 +86,7 @@
           [attr.aria-current]="node.id === activeNodeId ? 'true' : null"
           [attr.aria-expanded]="isNodeExpandable(node) ? isNodeExpanded(node) : null"
           [attr.aria-controls]="isNodeExpandable(node) ? childListId(node) : null"
+          [disabled]="interactionLocked"
           (pointerdown)="beginNodeDrag($event, node)"
           (click)="activateNode(node, $event)"
         >

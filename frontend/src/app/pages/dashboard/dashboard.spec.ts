@@ -521,6 +521,86 @@ describe('Dashboard', () => {
     );
   }));
 
+  it('freezes and disables the background graph while a customer search result profile is open', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    fixture.detectChanges();
+
+    openCustomerSearchFromGraph(fixture);
+    setCustomerSearchTerm(fixture, 'mila');
+    flushCustomerSearch('mila', [
+      customerDto(8, 'Mila Muster', { email: 'mila.muster@example.local' }),
+    ]);
+
+    const graphHost = (fixture.nativeElement as HTMLElement).querySelector('app-workspace-graph');
+    const graphLabelsBeforeProfileOpen = graphNodeLabels(fixture);
+    const activeGraphLabelBeforeProfileOpen = normalizeText(
+      activeGraphNodeButton(fixture)?.textContent,
+    );
+    const expandedNodeIdsBeforeProfileOpen = Array.from(
+      (fixture.componentInstance as unknown as {
+        expandedNodeIds: () => ReadonlySet<string>;
+      }).expandedNodeIds(),
+    ).sort();
+
+    expect(graphHost?.getAttribute('inert')).toBe('');
+    expect(graphHost?.getAttribute('aria-hidden')).toBe('true');
+    expect(graphNodeButton(fixture, 'Kunden').disabled).toBeTrue();
+
+    buttonByText(fixture, 'Mila Muster').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const profileDialog = host.querySelector('[role="dialog"]');
+
+    expect(profileDialog?.textContent).toContain('Mila Muster Profil');
+    expect(graphHost?.getAttribute('inert')).toBe('');
+    expect(graphHost?.getAttribute('aria-hidden')).toBe('true');
+    expect(graphNodeLabels(fixture)).toEqual(graphLabelsBeforeProfileOpen);
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe(
+      activeGraphLabelBeforeProfileOpen,
+    );
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeLabels(fixture)).toEqual(graphLabelsBeforeProfileOpen);
+    expect(
+      Array.from(
+        (fixture.componentInstance as unknown as {
+          expandedNodeIds: () => ReadonlySet<string>;
+        }).expandedNodeIds(),
+      ).sort(),
+    ).toEqual(expandedNodeIdsBeforeProfileOpen);
+
+    buttonByText(fixture, 'Schließen').click();
+    tick(230);
+    fixture.detectChanges();
+    tick(50);
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphHost?.hasAttribute('inert')).toBeFalse();
+    expect(graphNodeButton(fixture, 'Kunden').disabled).toBeFalse();
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('false');
+  }));
+
   it('shows at most six round customer search result nodes and asks to refine larger result sets', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting
@@ -1164,7 +1244,7 @@ describe('Dashboard', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       'Katja Gross ist jetzt dein persönlicher Favorit.',
     );
-    expect(graphNodeLabels(fixture)).toContain('Katja Gross');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
     expect(favoriteToggleButtons(fixture)[0].textContent).toContain('Aus Favoriten entfernen');
 
     favoriteToggleButtons(fixture)[0].click();

@@ -87,6 +87,17 @@ type WorkspaceWorkPage = {
   empty?: boolean;
 };
 
+type LockedGraphPresentation = {
+  nodes: WorkspaceGraphNode[];
+  edges: ReturnType<typeof buildDashboardGraphEdges>;
+  activeNodeId: string;
+  centeredNodeId: string;
+  expandedNodeIds: ReadonlySet<string>;
+  expandableNodeIds: readonly string[];
+  lockAnchoredNodesToAutoLayout: boolean;
+  showFitToViewControl: boolean;
+};
+
 type CustomerListItem = {
   id: string;
   firstName: string;
@@ -260,6 +271,39 @@ export class Dashboard implements OnInit {
     buildDashboardGraphEdges(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole()),
   );
   protected readonly hasActiveWorkPage = computed(() => this.activeWorkPage() !== null);
+  protected readonly graphInteractionLocked = computed(() => this.hasActiveWorkPage());
+  protected readonly presentedGraphNodes = computed(
+    () => this.lockedGraphPresentation()?.nodes ?? this.graphNodes(),
+  );
+  protected readonly presentedGraphEdges = computed(
+    () => this.lockedGraphPresentation()?.edges ?? this.graphEdges(),
+  );
+  protected readonly presentedActiveNodeId = computed(
+    () => this.lockedGraphPresentation()?.activeNodeId ?? this.activeNodeId(),
+  );
+  protected readonly presentedCenteredNodeId = computed(
+    () =>
+      this.lockedGraphPresentation()?.centeredNodeId ??
+      (this.layoutMode() === 'focused-work' ? this.activeNodeId() : ''),
+  );
+  protected readonly presentedExpandedNodeIds = computed(
+    () => this.lockedGraphPresentation()?.expandedNodeIds ?? this.expandedNodeIds(),
+  );
+  protected readonly presentedExpandableNodeIds = computed(
+    () =>
+      this.lockedGraphPresentation()?.expandableNodeIds ??
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+  );
+  protected readonly presentedLockAnchoredNodesToAutoLayout = computed(
+    () =>
+      this.lockedGraphPresentation()?.lockAnchoredNodesToAutoLayout ??
+      this.layoutMode() === 'focused-work',
+  );
+  protected readonly presentedShowFitToViewControl = computed(
+    () =>
+      this.lockedGraphPresentation()?.showFitToViewControl ?? this.layoutMode() === 'custom-flex',
+  );
+  private readonly lockedGraphPresentation = signal<LockedGraphPresentation | null>(null);
   private focusNodeAfterWorkPageClose: string | null = null;
   private customerSearchBusyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -277,6 +321,10 @@ export class Dashboard implements OnInit {
   }
 
   protected handleGraphSelection(selection: WorkspaceGraphSelection): void {
+    if (this.graphInteractionLocked()) {
+      return;
+    }
+
     const node = selection.node;
     const hasChildren = hasDashboardGraphChildren(
       node.id,
@@ -478,6 +526,7 @@ export class Dashboard implements OnInit {
               'Der neue Kunde wurde als konkreter Instanzknoten mit Profil-, Löschen- und Entfernen-Aktionen an den Kundenknoten gehängt.',
           });
           this.activeWorkPage.set(null);
+          this.unlockGraphPresentation();
           setTimeout(() => this.focusWorkspaceNode(customer.id), 250);
         },
         error: () => {
@@ -526,6 +575,7 @@ export class Dashboard implements OnInit {
             'Die Kund:in wurde aus Suche, Favoritenanzeige und Detailkontext entfernt. Der Kundenbereich bleibt ohne kaputte Detailansicht geöffnet.',
         });
         this.activeWorkPage.set(null);
+        this.unlockGraphPresentation();
         setTimeout(() => this.focusWorkspaceNode('customers'), 250);
       },
       error: (error: HttpErrorResponse) => {
@@ -812,6 +862,7 @@ export class Dashboard implements OnInit {
 
   protected clearActiveWorkPage(): void {
     this.activeWorkPage.set(null);
+    this.unlockGraphPresentation();
     const nodeId = this.focusNodeAfterWorkPageClose ?? this.activeNodeId();
 
     this.focusNodeAfterWorkPageClose = null;
@@ -819,6 +870,10 @@ export class Dashboard implements OnInit {
   }
 
   protected setLayoutMode(mode: WorkspaceLayoutMode): void {
+    if (this.graphInteractionLocked()) {
+      return;
+    }
+
     this.layoutMode.set(mode);
 
     if (mode === 'focused-work') {
@@ -827,16 +882,28 @@ export class Dashboard implements OnInit {
   }
 
   protected expandEntireGraph(): void {
+    if (this.graphInteractionLocked()) {
+      return;
+    }
+
     this.expandedNodeIds.set(
       new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole())),
     );
   }
 
   protected collapseEntireGraph(): void {
+    if (this.graphInteractionLocked()) {
+      return;
+    }
+
     this.expandedNodeIds.set(new Set());
   }
 
   private toggleEntireGraph(): void {
+    if (this.graphInteractionLocked()) {
+      return;
+    }
+
     if (
       isDashboardGraphFullyExpanded(
         this.favoriteCustomers(),
@@ -922,6 +989,30 @@ export class Dashboard implements OnInit {
     this.expandedNodeIds.update(
       (current) => new Set(Array.from(current).filter((nodeId) => relevantContextNodeIds.has(nodeId))),
     );
+  }
+
+  private lockGraphPresentationForWorkPage(): void {
+    if (this.lockedGraphPresentation()) {
+      return;
+    }
+
+    this.lockedGraphPresentation.set({
+      nodes: this.graphNodes(),
+      edges: this.graphEdges(),
+      activeNodeId: this.activeNodeId(),
+      centeredNodeId: this.layoutMode() === 'focused-work' ? this.activeNodeId() : '',
+      expandedNodeIds: new Set(this.expandedNodeIds()),
+      expandableNodeIds: expandableDashboardGraphNodeIds(
+        this.favoriteCustomers(),
+        this.graphRole(),
+      ),
+      lockAnchoredNodesToAutoLayout: this.layoutMode() === 'focused-work',
+      showFitToViewControl: this.layoutMode() === 'custom-flex',
+    });
+  }
+
+  private unlockGraphPresentation(): void {
+    this.lockedGraphPresentation.set(null);
   }
 
   private preferredUsername(): string {
@@ -1298,6 +1389,7 @@ export class Dashboard implements OnInit {
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1329,6 +1421,7 @@ export class Dashboard implements OnInit {
       this.customerSearchBusy.set(false);
     }
     this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1351,6 +1444,7 @@ export class Dashboard implements OnInit {
     secondaryActionLabel: string,
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(sourceNode.id);
+    this.lockGraphPresentationForWorkPage();
     this.focusNodeAfterWorkPageClose = customer.id;
     this.activeWorkPage.set({
       sourceNodeId: sourceNode.id,
@@ -1371,6 +1465,7 @@ export class Dashboard implements OnInit {
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(sourceNode.id);
+    this.lockGraphPresentationForWorkPage();
     this.customerDeleteBusy.set(false);
     this.customerDeleteError.set('');
     this.focusNodeAfterWorkPageClose = sourceNode.id;
@@ -1418,6 +1513,7 @@ export class Dashboard implements OnInit {
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
