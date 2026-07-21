@@ -18,21 +18,39 @@ export type CustomerInstance = {
   name?: string;
 };
 
-const TOP_LEVEL_NODE_IDS = ['groomers', 'calendar', 'admin', 'customers', 'dogs'] as const;
 const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
 const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
+const TOP_LEVEL_NODE_IDS = [
+  'groomers',
+  'calendar',
+  'admin',
+  'customers',
+  CUSTOMER_FAVORITES_NODE_ID,
+  'dogs',
+] as const;
 
 type TopLevelNodeId = (typeof TOP_LEVEL_NODE_IDS)[number];
 
 const TOP_LEVEL_BASE_ANGLES = new Map<TopLevelNodeId, number>([
   ['groomers', 0],
-  ['calendar', 72],
-  ['admin', 144],
-  ['customers', 216],
-  ['dogs', 288],
+  ['calendar', 60],
+  ['admin', 120],
+  ['customers', 180],
+  [CUSTOMER_FAVORITES_NODE_ID, 240],
+  ['dogs', 300],
 ]);
+
+function visibleTopLevelNodeIds(role: DashboardGraphRole): TopLevelNodeId[] {
+  if (canManageCustomerGraph(role)) {
+    return [...TOP_LEVEL_NODE_IDS];
+  }
+
+  return TOP_LEVEL_NODE_IDS.filter(
+    (nodeId) => nodeId !== CUSTOMER_FAVORITES_NODE_ID,
+  );
+}
 
 const rootNode: WorkspaceGraphNode = {
   id: 'start',
@@ -90,7 +108,17 @@ const topLevelNodes: WorkspaceGraphNode[] = [
     layout: { angle: 216 },
     icon: 'pi-users',
     action: 'open-panel',
-    description: 'Kundenbereich mit rollenabhängiger Suche, Favoriten und konkreten Kundenknoten',
+    description: 'Kundenbereich mit rollenabhängiger Suche und allgemeiner Kundenverwaltung',
+  },
+  {
+    id: CUSTOMER_FAVORITES_NODE_ID,
+    label: 'Favoriten',
+    kind: 'domain',
+    x: 390,
+    y: 490,
+    layout: { angle: 240 },
+    icon: 'pi-star',
+    description: `Eigenständiger Schnellzugriff für bis zu ${CUSTOMER_FAVORITE_LIMIT} persönliche Kunden-Favoriten. Sichtbar für Admins und Groomer.`,
   },
   {
     id: 'dogs',
@@ -208,16 +236,6 @@ const customerManagerNodes: WorkspaceGraphNode[] = [
     icon: 'pi-plus',
     action: 'custom',
     description: 'Neuen Kunden über ein Formular erfassen. Sichtbar für Admins und Groomer.',
-  },
-  {
-    id: CUSTOMER_FAVORITES_NODE_ID,
-    label: 'Favoriten',
-    kind: 'domain',
-    x: 230,
-    y: 345,
-    layout: { angle: 260 },
-    icon: 'pi-star',
-    description: `Strukturknoten für bis zu ${CUSTOMER_FAVORITE_LIMIT} angeheftete Kunden-Instanzen. Sichtbar für Admins und Groomer.`,
   },
 ];
 
@@ -432,13 +450,14 @@ export function expandableDashboardGraphNodeIds(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
 ): string[] {
+  const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
+
   if (!canManageCustomerGraph(role)) {
-    return [...TOP_LEVEL_NODE_IDS];
+    return visibleTopLevelNodes;
   }
 
   return [
-    ...TOP_LEVEL_NODE_IDS,
-    CUSTOMER_FAVORITES_NODE_ID,
+    ...visibleTopLevelNodes,
     ...favoriteCustomers(customers).map((customer) => customer.id),
   ];
 }
@@ -511,13 +530,16 @@ export function buildDashboardGraphNodes(
   role: DashboardGraphRole = 'admin',
 ): WorkspaceGraphNode[] {
   const topLevelLayout = topLevelLayoutById(focusedTopLevelNodeId);
+  const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
   const nodes = [
     rootNode,
-    ...topLevelNodes.map((node) => withTopLevelLayout(node, topLevelLayout)),
+    ...topLevelNodes
+      .filter((node) => visibleTopLevelNodes.includes(node.id as TopLevelNodeId))
+      .map((node) => withTopLevelLayout(node, topLevelLayout)),
   ];
   const visibleFavoriteCustomers = favoriteCustomers(customers);
 
-  TOP_LEVEL_NODE_IDS.forEach((nodeId) => {
+  visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
       const childNodes =
         nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
@@ -526,11 +548,8 @@ export function buildDashboardGraphNodes(
     }
   });
 
-  const isCustomerAreaExpanded = expandedNodeIds.has('customers');
   const isCustomerFavoritesVisible =
-    canManageCustomerGraph(role) &&
-    isCustomerAreaExpanded &&
-    expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
+    canManageCustomerGraph(role) && expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
 
   if (isCustomerFavoritesVisible) {
     nodes.push(...visibleFavoriteCustomers.map((customer) => customerInstanceNode(customer)));
@@ -550,16 +569,14 @@ export function buildDashboardGraphEdges(
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
 ): WorkspaceGraphEdge[] {
-  const edges: WorkspaceGraphEdge[] = [
-    { from: 'start', to: 'groomers' },
-    { from: 'start', to: 'calendar' },
-    { from: 'start', to: 'admin' },
-    { from: 'start', to: 'customers' },
-    { from: 'start', to: 'dogs' },
-  ];
+  const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
+  const edges: WorkspaceGraphEdge[] = visibleTopLevelNodes.map((nodeId) => ({
+    from: 'start',
+    to: nodeId,
+  }));
   const visibleFavoriteCustomers = favoriteCustomers(customers);
 
-  TOP_LEVEL_NODE_IDS.forEach((nodeId) => {
+  visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
       const childNodes =
         nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
@@ -568,11 +585,8 @@ export function buildDashboardGraphEdges(
     }
   });
 
-  const isCustomerAreaExpanded = expandedNodeIds.has('customers');
   const isCustomerFavoritesVisible =
-    canManageCustomerGraph(role) &&
-    isCustomerAreaExpanded &&
-    expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
+    canManageCustomerGraph(role) && expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID);
 
   if (isCustomerFavoritesVisible) {
     edges.push(

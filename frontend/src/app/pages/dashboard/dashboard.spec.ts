@@ -781,7 +781,6 @@ describe('Dashboard', () => {
     ]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
@@ -834,7 +833,6 @@ describe('Dashboard', () => {
       .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
@@ -845,8 +843,17 @@ describe('Dashboard', () => {
     fixture.detectChanges();
 
     expect(graphNodeLabels(fixture)).toEqual(
-      jasmine.arrayContaining(['Hinzufügen', 'Favoriten', 'Katja Gross', 'Profil']),
+      jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Profil']),
     );
+    expect(graphNodeLabels(fixture)).not.toContain('Hinzufügen');
+
+    graphNodeButton(fixture, 'Kunden').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
 
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
@@ -891,7 +898,6 @@ describe('Dashboard', () => {
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
@@ -921,7 +927,6 @@ describe('Dashboard', () => {
       .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
 
@@ -958,7 +963,7 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Profil');
   }));
 
-  it('collapses all open customer descendants when the parent customer node is closed', fakeAsync(() => {
+  it('collapses all open favorite descendants when the top-level favorites node is closed', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting
       .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
@@ -972,7 +977,6 @@ describe('Dashboard', () => {
       .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
@@ -982,34 +986,32 @@ describe('Dashboard', () => {
     tick();
     fixture.detectChanges();
 
-    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
     expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('true');
     expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('true');
     expect(graphNodeLabels(fixture)).toEqual(
       jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Profil', 'Terminliste', 'Löschen', 'X']),
     );
 
-    graphNodeButton(fixture, 'Kunden').click();
+    graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
     fixture.detectChanges();
 
-    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('false');
-    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-label')).toContain(
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-label')).toContain(
       'eingeklappt',
     );
-    expect(graphNodeLabels(fixture)).not.toContain('Favoriten');
     expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
     expect(graphNodeLabels(fixture)).not.toContain('Profil');
 
-    graphNodeButton(fixture, 'Kunden').click();
+    graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
     fixture.detectChanges();
 
-    expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
-    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
-    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Profil');
   }));
 
   it('collapses an expanded sibling customer subtree when another favorite customer is opened', fakeAsync(() => {
@@ -1027,7 +1029,6 @@ describe('Dashboard', () => {
     ]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     tick();
@@ -1071,7 +1072,6 @@ describe('Dashboard', () => {
       .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     graphNodeButton(fixture, 'Katja Gross').click();
@@ -1263,7 +1263,6 @@ describe('Dashboard', () => {
       .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
-    expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
     graphNodeButton(fixture, 'Katja Gross').click();
@@ -1369,6 +1368,7 @@ describe('Dashboard', () => {
       'Kalender',
       'Admin',
       'Kunden',
+      'Favoriten',
       'Hunde',
     ]);
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Groomer hinzufügen');

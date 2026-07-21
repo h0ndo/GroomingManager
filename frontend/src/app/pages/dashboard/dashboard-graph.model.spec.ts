@@ -35,6 +35,7 @@ describe('dashboard graph model', () => {
       'calendar',
       'admin',
       'customers',
+      'customer-favorites',
       'dogs',
     ]);
     expect(startNode.label).toBe('Start Schnittstelle 2');
@@ -45,11 +46,12 @@ describe('dashboard graph model', () => {
       { from: 'start', to: 'calendar' },
       { from: 'start', to: 'admin' },
       { from: 'start', to: 'customers' },
+      { from: 'start', to: 'customer-favorites' },
       { from: 'start', to: 'dogs' },
     ]);
   });
 
-  it('shows second-level customer search, add and favorites only for manager roles', () => {
+  it('shows customer search/add under customers and favorites as top-level for manager roles', () => {
     const expandedNodeIds = new Set(['calendar', 'customers']);
     const nodes = buildDashboardGraphNodes(
       favoriteCustomers,
@@ -74,7 +76,7 @@ describe('dashboard graph model', () => {
       jasmine.objectContaining({
         kind: 'domain',
         description:
-          'Strukturknoten für bis zu 6 angeheftete Kunden-Instanzen. Sichtbar für Admins und Groomer.',
+          'Eigenständiger Schnellzugriff für bis zu 6 persönliche Kunden-Favoriten. Sichtbar für Admins und Groomer.',
       }),
     );
     expect(nodes.find((node) => node.id === 'customer-favorites')).not.toEqual(
@@ -87,7 +89,7 @@ describe('dashboard graph model', () => {
         { from: 'calendar', to: 'appointments' },
         { from: 'customers', to: 'customer-search' },
         { from: 'customers', to: 'customer-add' },
-        { from: 'customers', to: 'customer-favorites' },
+        { from: 'start', to: 'customer-favorites' },
       ]),
     );
     expect(edges).not.toContain({ from: 'admin', to: 'admin-groomer-add' });
@@ -135,10 +137,11 @@ describe('dashboard graph model', () => {
     const nodes = buildDashboardGraphNodes([], new Set(), 'calendar');
 
     expect(nodes.find((node) => node.id === 'calendar')?.layout?.angle).toBe(0);
-    expect(nodes.find((node) => node.id === 'admin')?.layout?.angle).toBe(72);
-    expect(nodes.find((node) => node.id === 'customers')?.layout?.angle).toBe(144);
-    expect(nodes.find((node) => node.id === 'dogs')?.layout?.angle).toBe(216);
-    expect(nodes.find((node) => node.id === 'groomers')?.layout?.angle).toBe(288);
+    expect(nodes.find((node) => node.id === 'admin')?.layout?.angle).toBe(60);
+    expect(nodes.find((node) => node.id === 'customers')?.layout?.angle).toBe(120);
+    expect(nodes.find((node) => node.id === 'customer-favorites')?.layout?.angle).toBe(180);
+    expect(nodes.find((node) => node.id === 'dogs')?.layout?.angle).toBe(240);
+    expect(nodes.find((node) => node.id === 'groomers')?.layout?.angle).toBe(300);
   });
 
   it('adds up to six customer instance nodes below favorites and preserves profile data on the payload', () => {
@@ -229,18 +232,17 @@ describe('dashboard graph model', () => {
     );
   });
 
-  it('derives recursive customer descendants and hides stale descendant expansions without their parent chain', () => {
-    const staleExpandedNodeIds = new Set([
-      'customer-favorites',
-      'customer-katja-gross',
-      'customer-alex-sommer',
-    ]);
+  it('derives recursive descendants from separate customers and favorites top-level areas', () => {
+    const staleExpandedNodeIds = new Set(['customer-katja-gross', 'customer-alex-sommer']);
 
     expect(dashboardGraphDescendantNodeIds('customers', favoriteCustomers)).toEqual(
+      jasmine.arrayContaining(['customer-search', 'customer-add']),
+    );
+    expect(dashboardGraphDescendantNodeIds('customers', favoriteCustomers)).not.toContain(
+      'customer-favorites',
+    );
+    expect(dashboardGraphDescendantNodeIds('customer-favorites', favoriteCustomers)).toEqual(
       jasmine.arrayContaining([
-        'customer-search',
-        'customer-add',
-        'customer-favorites',
         'customer-katja-gross',
         'customer-alex-sommer',
         'customer-katja-gross-profile',
@@ -250,7 +252,7 @@ describe('dashboard graph model', () => {
       ]),
     );
     expect(buildDashboardGraphNodes(favoriteCustomers, staleExpandedNodeIds).map((node) => node.id))
-      .not.toEqual(jasmine.arrayContaining(['customer-favorites', 'customer-katja-gross']));
+      .not.toEqual(jasmine.arrayContaining(['customer-katja-gross', 'customer-katja-gross-profile']));
     expect(buildDashboardGraphEdges(favoriteCustomers, staleExpandedNodeIds)).not.toEqual(
       jasmine.arrayContaining([
         { from: 'customer-favorites', to: 'customer-katja-gross' },
@@ -314,8 +316,8 @@ describe('dashboard graph model', () => {
       'calendar',
       'admin',
       'customers',
-      'dogs',
       'customer-favorites',
+      'dogs',
     ]);
 
     expect(expandableDashboardGraphNodeIds(favoriteCustomers)).toEqual([
@@ -323,8 +325,8 @@ describe('dashboard graph model', () => {
       'calendar',
       'admin',
       'customers',
-      'dogs',
       'customer-favorites',
+      'dogs',
       'customer-katja-gross',
       'customer-alex-sommer',
     ]);

@@ -1026,11 +1026,7 @@ export class Dashboard implements OnInit {
       const next = new Set<string>([nodeId]);
       const activeAncestors = this.activeNodeAncestorIds();
 
-      if (nodeId === 'customers' && current.has('customer-favorites')) {
-        next.add('customer-favorites');
-      }
-
-      if (nodeId === 'customers') {
+      if (nodeId === 'customer-favorites') {
         this.favoriteCustomers().forEach((customer) => {
           if (current.has(customer.id) || activeAncestors.includes(customer.id)) {
             next.add(customer.id);
@@ -1090,8 +1086,8 @@ export class Dashboard implements OnInit {
               ? { ...selectedCustomer, ...pinnedCustomer }
               : selectedCustomer,
           );
-          this.expandNode('customers');
           this.expandNode('customer-favorites');
+          this.focusedTopLevelNodeId.set('customer-favorites');
           this.activeNodeId.set(pinnedCustomer.id);
           this.focusNodeAfterWorkPageClose = pinnedCustomer.id;
           this.favoriteStatusMessage.set(
