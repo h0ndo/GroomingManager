@@ -280,10 +280,9 @@ function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
     layout: { distance: CUSTOMER_FAVORITE_NODE_DISTANCE },
     icon: 'pi-user',
     avatarUrl: customer.avatarUrl,
-    action: 'custom',
     payload: customer,
     description:
-      'Angehefteter konkreter Kunde mit Vorname, Nachname und optionalem Profilbild im Arbeitsgraphen',
+      'Angehefteter konkreter Kunde als Kontextknoten mit weiterführenden Profil-, Termin- und Favoritenaktionen',
   };
 }
 
@@ -425,8 +424,7 @@ export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolea
     !!node.route ||
     !!node.action ||
     node.kind === 'page' ||
-    node.kind === 'action' ||
-    node.kind === 'instance'
+    node.kind === 'action'
   );
 }
 

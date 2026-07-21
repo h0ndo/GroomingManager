@@ -440,6 +440,10 @@ export class WorkspaceGraph {
         return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; es wird kein separates Fenster geöffnet';
       }
 
+      if (node.kind === 'instance') {
+        return 'Click, Enter oder Space öffnet bzw. schließt angehängte Aktionsknoten; der Kunden-Instanzknoten öffnet kein Profil und kein separates Fenster';
+      }
+
       return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; funktionale Knoten können zusätzlich eine Seite oder Aktion öffnen';
     }
 

@@ -420,20 +420,14 @@ export class Dashboard implements OnInit {
 
       if (customer) {
         this.selectedCustomer.set(customer);
-        this.openCustomerProfileReadPage(
-          customer,
-          node,
-          selection.sourceOrigin,
-          'Zum Favoriten-Knoten',
-        );
       }
 
       this.workspacePanel.set({
-        mode: customer ? 'profile' : 'selected',
+        mode: 'selected',
         eyebrow: 'Angeheftete Instanz',
-        title: customer ? `${customerDisplayName(customer)} ansehen` : node.label,
+        title: customer ? `${customerDisplayName(customer)} ausgewählt` : node.label,
         description: customer
-          ? 'Der Favoriten-Kundenknoten öffnet das Kundenprofil direkt im Lesemodus.'
+          ? 'Der Favoriten-Kundenknoten ist ein Kontextknoten. Klappe seine Aktionen auf und wähle Profil, Terminliste, Entfernen oder eine Rollenaktion explizit aus.'
           : 'Dieser Kreis steht für ein konkretes Domänenobjekt, an dem gerade gearbeitet wird. Daran hängen kontextspezifische Aktionen.',
         node,
       });

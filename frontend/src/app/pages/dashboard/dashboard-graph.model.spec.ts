@@ -167,6 +167,7 @@ describe('dashboard graph model', () => {
         payload: sevenCustomers[0],
       }),
     );
+    expect(isFunctionalDashboardGraphNode(nodes.find((node) => node.id === 'customer-1')!)).toBeFalse();
     expect(edges).toEqual(
       jasmine.arrayContaining([{ from: 'customer-favorites', to: 'customer-1' }]),
     );

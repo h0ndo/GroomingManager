@@ -833,7 +833,7 @@ describe('Dashboard', () => {
     );
   }));
 
-  it('opens a personal favorite customer node directly as a read-only profile', fakeAsync(() => {
+  it('toggles a personal favorite customer node without opening a profile directly', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting
       .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
@@ -857,14 +857,72 @@ describe('Dashboard', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
+    const favoriteCustomerButton = graphNodeButton(fixture, 'Katja Gross');
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(favoriteCustomerButton.getAttribute('aria-expanded')).toBe('true');
+    expect(favoriteCustomerButton.getAttribute('aria-label')).toContain(
+      'Click, Enter oder Space öffnet bzw. schließt angehängte Aktionsknoten',
+    );
+    expect(favoriteCustomerButton.getAttribute('aria-label')).toContain(
+      'der Kunden-Instanzknoten öffnet kein Profil und kein separates Fenster',
+    );
+    expect(host.textContent ?? '').toContain(
+      'Katja Gross ist aufgeklappt. Wähle einen Unterknoten, um eine Seite oder Aktion zu öffnen.',
+    );
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Katja Gross', 'Profil', 'Terminliste', 'X']),
+    );
+
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Profil');
+  }));
+
+  it('opens a personal favorite customer profile only from the attached profile action node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const profileActionButton = graphNodeButton(fixture, 'Profil');
+    expect(profileActionButton.getAttribute('aria-label')).toContain('Profil, Aktion');
+
+    profileActionButton.click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
     const dialog = host.querySelector('[role="dialog"]');
     const profile = host.querySelector<HTMLElement>('#customerProfileReadMode');
 
     expect(dialog?.textContent).toContain('Katja Gross Profil');
     expect(dialog?.textContent).toContain('Lesemodus · keine direkte Bearbeitung');
-    expect(dialog?.textContent).toContain('Zum Favoriten-Knoten');
+    expect(dialog?.textContent).toContain('Zum Kunden-Knoten');
     expect(host.textContent ?? '').toContain(
-      'Der Favoriten-Kundenknoten öffnet das Kundenprofil direkt im Lesemodus.',
+      'Das Profil ist zunächst als klarer Lesemodus geöffnet. Bearbeiten bleibt bewusst eine spätere Aktion.',
     );
     expect(profile?.getAttribute('aria-label')).toBe('Katja Gross Kundenprofil im Lesemodus');
     expect(document.activeElement).toBe(profile);
@@ -981,11 +1039,9 @@ describe('Dashboard', () => {
     fixture.detectChanges();
     tick();
     fixture.detectChanges();
-    buttonByText(fixture, 'Zum Favoriten-Knoten').click();
-    tick(230);
-    fixture.detectChanges();
-    tick(50);
-    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeLabels(fixture)).toContain('Löschen');
 
     graphNodeButton(fixture, 'Löschen').click();
     fixture.detectChanges();
