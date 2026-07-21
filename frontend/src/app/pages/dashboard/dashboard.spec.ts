@@ -946,6 +946,51 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
   }));
 
+  it('collapses an expanded sibling customer subtree when another favorite customer is opened', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
+      { customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null },
+      { customerId: 8, firstName: 'Alex', lastName: 'Sommer', profileImageBase64: null },
+    ]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('true');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-node-id="7-profile"]')).not.toBeNull();
+
+    graphNodeButton(fixture, 'Alex Sommer').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      expandedNodeIds: () => ReadonlySet<string>;
+    };
+
+    expect(component.expandedNodeIds().has('7')).toBeFalse();
+    expect(component.expandedNodeIds().has('8')).toBeTrue();
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeButton(fixture, 'Alex Sommer').getAttribute('aria-expanded')).toBe('true');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-node-id="7-profile"]')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-node-id="8-profile"]')).not.toBeNull();
+  }));
+
   it('opens a personal favorite customer profile only from the attached profile action node', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting

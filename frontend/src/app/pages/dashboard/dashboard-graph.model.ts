@@ -477,6 +477,33 @@ export function dashboardGraphDescendantNodeIds(
   return descendants;
 }
 
+export function dashboardGraphSiblingSubtreeNodeIds(
+  nodeId: string,
+  customers: readonly CustomerInstance[],
+  role: DashboardGraphRole = 'admin',
+): string[] {
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const parentNodeIds = edges
+    .filter((edge) => edge.to === nodeId)
+    .map((edge) => edge.from);
+  const subtreeNodeIds = new Set<string>();
+
+  parentNodeIds.forEach((parentNodeId) => {
+    edges
+      .filter((edge) => edge.from === parentNodeId && edge.to !== nodeId)
+      .map((edge) => edge.to)
+      .forEach((siblingNodeId) => {
+        subtreeNodeIds.add(siblingNodeId);
+        dashboardGraphDescendantNodeIds(siblingNodeId, customers, role).forEach(
+          (descendantNodeId) => subtreeNodeIds.add(descendantNodeId),
+        );
+      });
+  });
+
+  return Array.from(subtreeNodeIds);
+}
+
 export function buildDashboardGraphNodes(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,

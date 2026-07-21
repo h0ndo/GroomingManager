@@ -2,6 +2,7 @@ import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
   dashboardGraphDescendantNodeIds,
+  dashboardGraphSiblingSubtreeNodeIds,
   expandableDashboardGraphNodeIds,
   hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
@@ -255,6 +256,25 @@ describe('dashboard graph model', () => {
         { from: 'customer-favorites', to: 'customer-katja-gross' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-profile' },
       ]),
+    );
+  });
+
+  it('derives sibling subtrees generically from the fully expanded graph edges', () => {
+    expect(dashboardGraphSiblingSubtreeNodeIds('customer-alex-sommer', favoriteCustomers)).toEqual(
+      jasmine.arrayContaining([
+        'customer-katja-gross',
+        'customer-katja-gross-profile',
+        'customer-katja-gross-appointment-list',
+        'customer-katja-gross-delete',
+        'customer-katja-gross-detach',
+      ]),
+    );
+    expect(
+      dashboardGraphSiblingSubtreeNodeIds('customer-alex-sommer', favoriteCustomers),
+    ).not.toContain('customer-search');
+
+    expect(dashboardGraphSiblingSubtreeNodeIds('customer-favorites', favoriteCustomers)).toEqual(
+      jasmine.arrayContaining(['customer-search', 'customer-add']),
     );
   });
 
