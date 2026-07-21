@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { AuthService } from '../../core/auth.service';
 import { runtimeConfig } from '../../core/runtime-config';
@@ -127,6 +128,7 @@ type AgendaItem = {
     CircularWorkPage,
     FormsModule,
     RouterLink,
+    TableModule,
     TagModule,
     WorkspaceGraph,
   ],
@@ -161,6 +163,11 @@ export class Dashboard implements OnInit {
   protected readonly customerSearchResults = signal<CustomerListItem[]>([]);
   protected readonly customerSearchBusy = signal(false);
   protected readonly customerSearchError = signal('');
+  protected readonly customerListItems = signal<CustomerListItem[]>([]);
+  protected readonly customerListBusy = signal(false);
+  protected readonly customerListError = signal('');
+  protected readonly customerListPageSize = 30;
+  protected readonly customerListFetchLimit = 100;
   protected readonly customerDeleteBusy = signal(false);
   protected readonly customerDeleteError = signal('');
   protected readonly customerSearchResultLimit = 6;
@@ -373,6 +380,19 @@ export class Dashboard implements OnInit {
 
     if (hasChildren) {
       this.toggleExpandedNode(node.id);
+    }
+
+    if (node.id === 'customer-list') {
+      this.openCustomerListWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'list',
+        eyebrow: 'Kundenaktion',
+        title: 'Kundenliste geöffnet',
+        description:
+          'Die Kundenliste ist als runde Work-Page mit tabellarischer 30er-Paginierung geöffnet.',
+        node,
+      });
+      return;
     }
 
     if (node.id === 'customer-search') {
@@ -668,6 +688,10 @@ export class Dashboard implements OnInit {
     return value?.trim() || 'Nicht hinterlegt';
   }
 
+  protected customerListFieldValue(value: string | undefined): string {
+    return value?.trim() || 'Nicht hinterlegt';
+  }
+
   protected selectedCustomerLabelFor(customer: CustomerInstance): string {
     return customerDisplayName(customer);
   }
@@ -712,6 +736,36 @@ export class Dashboard implements OnInit {
           this.updateActiveWorkPageState({ busy: false, error: errorMessage, empty: false });
         },
         complete: () => this.customerSearchBusy.set(false),
+      });
+  }
+
+  private loadCustomerList(): void {
+    if (!this.canManageCustomers() || this.customerListBusy()) {
+      return;
+    }
+
+    this.customerListBusy.set(true);
+    this.customerListError.set('');
+    this.updateActiveWorkPageState({ busy: true, error: '', empty: false });
+    this.http
+      .get<CustomerDto[]>(`${runtimeConfig.apiBaseUrl}/customers`, {
+        params: { limit: String(this.customerListFetchLimit) },
+      })
+      .subscribe({
+        next: (customers) => {
+          this.customerListItems.set(
+            customers.map((customer) => this.customerListItemFromDto(customer)),
+          );
+          this.updateActiveWorkPageState({ busy: false, error: '', empty: false });
+        },
+        error: () => {
+          const errorMessage = 'Kundenliste konnte nicht geladen werden. Bitte versuche es erneut.';
+
+          this.customerListItems.set([]);
+          this.customerListError.set(errorMessage);
+          this.updateActiveWorkPageState({ busy: false, error: errorMessage, empty: false });
+        },
+        complete: () => this.customerListBusy.set(false),
       });
   }
 
@@ -1470,6 +1524,37 @@ export class Dashboard implements OnInit {
       primaryActionLabel: 'Speichern',
       secondaryActionLabel: 'Abbrechen',
     });
+  }
+
+  private openCustomerListWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    this.customerListItems.set([]);
+    this.customerListError.set('');
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'list',
+      title: 'Kundenliste',
+      description:
+        'Tabellarische Übersicht der Kund:innen mit 30 Einträgen pro Seite. Leere Kontaktfelder werden verständlich gekennzeichnet.',
+      originLabel: `aus Knoten ${node.label}`,
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Schließen',
+      busy: true,
+      error: '',
+      empty: false,
+    });
+    this.loadCustomerList();
   }
 
   private openCustomerSearchWorkPage(

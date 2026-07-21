@@ -112,6 +112,7 @@ h1 {
 }
 
 .work-page-search,
+.customer-list-work-page,
 .work-page-list-stub,
 .work-page-agenda-stub,
 .work-page-detail-stub,
@@ -343,7 +344,8 @@ h1 {
 .work-page-search__empty,
 .work-page-search__refine-hint,
 .work-page-list-stub__empty,
-.work-page-list-stub__state-hint {
+.work-page-list-stub__state-hint,
+.customer-list-work-page__empty {
   background: #f8fafc;
   border-radius: 0.9rem;
   padding: 0.7rem 0.8rem;
@@ -368,6 +370,27 @@ h1 {
 
 .work-page-search__item .work-page-search__avatar {
   color: #fff;
+}
+
+.customer-list-work-page {
+  min-width: 0;
+}
+
+.customer-list-work-page__caption,
+.customer-list-work-page__summary {
+  display: block;
+}
+
+.customer-list-work-page__caption {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.customer-list-work-page__summary,
+.customer-list-work-page__empty {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin: 0;
 }
 
 .work-page-agenda-stub__date-row {

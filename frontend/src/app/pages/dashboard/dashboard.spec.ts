@@ -96,6 +96,14 @@ function favoriteToggleButtons(fixture: ComponentFixture<Dashboard>): HTMLButton
   );
 }
 
+function customerListTableRows(fixture: ComponentFixture<Dashboard>): HTMLTableRowElement[] {
+  return Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLTableRowElement>(
+      '.customer-list-table tbody tr',
+    ),
+  );
+}
+
 function expandCustomersNode(fixture: ComponentFixture<Dashboard>): void {
   graphNodeButton(fixture, 'Kunden').click();
   fixture.detectChanges();
@@ -142,6 +150,12 @@ const testfamilieCustomers = [
   customerDto(17, 'Frieda Testfamilie'),
 ];
 
+const paginatedCustomerList = Array.from({ length: 31 }, (_, index) => {
+  const id = index + 1;
+
+  return customerDto(id, `Vorname${String(id).padStart(2, '0')} Nachname${String(id).padStart(2, '0')}`);
+});
+
 function setCustomerSearchTerm(fixture: ComponentFixture<Dashboard>, term: string): void {
   const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
     '#workPageCustomerSearch',
@@ -172,6 +186,18 @@ describe('Dashboard', () => {
         candidate.url === `${runtimeConfig.apiBaseUrl}/customers` &&
         candidate.params.get('query') === term &&
         candidate.params.get('limit') === '7',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush(customers);
+    fixture.detectChanges();
+  }
+
+  function flushCustomerList(customers: Array<Record<string, string | number | null>>): void {
+    const request = httpTesting.expectOne(
+      (candidate) =>
+        candidate.url === `${runtimeConfig.apiBaseUrl}/customers` &&
+        candidate.params.get('limit') === '100' &&
+        !candidate.params.has('query'),
     );
     expect(request.request.method).toBe('GET');
     request.flush(customers);
@@ -492,6 +518,108 @@ describe('Dashboard', () => {
     expect(dialog?.textContent).toContain('Kundensuche');
     expect(searchInput).not.toBeNull();
     expect(document.activeElement).toBe(searchInput);
+  }));
+
+  it('opens the customer list action as a round PrimeNG table with 30-row pagination', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Kunden', 'Kundenliste']),
+    );
+
+    graphNodeButton(fixture, 'Kundenliste').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    flushCustomerList(paginatedCustomerList);
+
+    const host = fixture.nativeElement as HTMLElement;
+    const dialog = host.querySelector('[role="dialog"]');
+    const table = host.querySelector('p-table.customer-list-table');
+    const headers = Array.from(
+      host.querySelectorAll<HTMLTableCellElement>('.customer-list-table thead th'),
+    ).map((header) => normalizeText(header.textContent));
+
+    expect(dialog?.textContent).toContain('Kundenliste');
+    expect(table).not.toBeNull();
+    expect(headers).toEqual(['Vorname', 'Nachname', 'E-Mail', 'Telefonnummer']);
+    expect(customerListTableRows(fixture)).toHaveSize(30);
+    expect(dialog?.textContent).toContain('Vorname01');
+    expect(dialog?.textContent).not.toContain('Vorname31');
+    expect(dialog?.querySelector('.p-paginator')).not.toBeNull();
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Kundenliste').getAttribute('aria-current')).toBeNull();
+
+    const secondPageButton = Array.from(
+      dialog!.querySelectorAll<HTMLButtonElement>('.p-paginator button'),
+    ).find((button) => normalizeText(button.textContent) === '2');
+
+    expect(secondPageButton).not.toBeUndefined();
+    secondPageButton!.click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(customerListTableRows(fixture)).toHaveSize(1);
+    expect(dialog?.textContent).toContain('Vorname31');
+    expect(dialog?.textContent).not.toContain('Vorname01');
+  }));
+
+  it('opens the customer list action with Enter and Space without changing the focused-work node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+
+    graphNodeButton(fixture, 'Kundenliste').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    flushCustomerList([customerDto(1, 'Katja Gross')]);
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')?.textContent).toContain(
+      'Kundenliste',
+    );
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Kundenliste').getAttribute('aria-current')).toBeNull();
+
+    closeActiveWorkPage(fixture);
+
+    graphNodeButton(fixture, 'Kundenliste').dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    flushCustomerList([]);
+
+    const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
+
+    expect(dialog?.textContent).toContain('Kundenliste');
+    expect(dialog?.textContent).toContain('Noch keine Kund:innen vorhanden.');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Kundenliste').getAttribute('aria-current')).toBeNull();
   }));
 
   it('opens action nodes with keyboard without making them the focused-work focus', fakeAsync(() => {
@@ -1656,6 +1784,7 @@ describe('Dashboard', () => {
 
     expect(graphNodeLabels(fixture)).toContain('Mein Profil');
     expect(graphNodeLabels(fixture)).not.toContain('Suchen');
+    expect(graphNodeLabels(fixture)).not.toContain('Kundenliste');
     expect(graphNodeLabels(fixture)).not.toContain('Favoriten');
   });
 
@@ -1679,7 +1808,7 @@ describe('Dashboard', () => {
     buttonByText(fixture, 'Alles aufklappen').click();
     fixture.detectChanges();
 
-    expect(graphNodeLabels(fixture).length).toBe(25);
+    expect(graphNodeLabels(fixture).length).toBe(26);
     expect(graphNodeLabels(fixture)).toContain('Groomer hinzufügen');
 
     buttonByText(fixture, 'Focused Work').click();
