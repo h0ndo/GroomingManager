@@ -3,11 +3,8 @@ locals {
     admin = {
       description = "Administrator:in der Kundeninstanz mit Rechten zur Nutzer- und Stammdatenverwaltung."
     }
-    fuehrungskraft = {
-      description = "Führungskraft mit Zugriff auf Teamsteuerung, Kapazitäten und operative Übersichten."
-    }
-    angestellter = {
-      description = "Angestellte:r mit Zugriff auf operative Arbeitsbereiche, Termine, Vorgänge und Kundenkontext."
+    groomer = {
+      description = "Groomer mit Zugriff auf operative Arbeitsbereiche, Termine, Tierprofile und Kundenkontext."
     }
     kunde = {
       description = "Kund:in mit Zugriff auf das Kundenportal und eigene Daten/Vorgänge."
@@ -25,21 +22,13 @@ locals {
       password   = var.test_admin_password
       group      = "admin"
     }
-    fuehrungskraft = {
-      username   = var.test_fuehrungskraft_email
-      email      = var.test_fuehrungskraft_email
+    groomer = {
+      username   = var.test_groomer_email
+      email      = var.test_groomer_email
       first_name = "Test"
-      last_name  = "Fuehrungskraft"
-      password   = var.test_fuehrungskraft_password
-      group      = "fuehrungskraft"
-    }
-    angestellter = {
-      username   = var.test_angestellter_email
-      email      = var.test_angestellter_email
-      first_name = "Test"
-      last_name  = "Angestellter"
-      password   = var.test_angestellter_password
-      group      = "angestellter"
+      last_name  = "Groomer"
+      password   = var.test_groomer_password
+      group      = "groomer"
     }
     kunde = {
       username   = var.test_kunde_email
@@ -52,10 +41,9 @@ locals {
   } : {}
 
   test_user_group_ids = {
-    admin          = keycloak_group.admins.id
-    fuehrungskraft = keycloak_group.fuehrungskraefte.id
-    angestellter   = keycloak_group.angestellte.id
-    kunde          = keycloak_group.kunden.id
+    admin   = keycloak_group.admins.id
+    groomer = keycloak_group.groomers.id
+    kunde   = keycloak_group.kunden.id
   }
 }
 
@@ -64,13 +52,13 @@ resource "keycloak_realm" "app" {
   display_name = "GroomingManager"
   enabled      = true
 
-  registration_allowed           = false
+  registration_allowed           = var.registration_allowed
   registration_email_as_username = true
   reset_password_allowed         = true
   remember_me                    = true
   login_with_email_allowed       = true
   duplicate_emails_allowed       = false
-  verify_email                   = false
+  verify_email                   = true
   ssl_required                   = "external"
 }
 
@@ -109,14 +97,9 @@ resource "keycloak_group" "admins" {
   name     = "Admins"
 }
 
-resource "keycloak_group" "fuehrungskraefte" {
+resource "keycloak_group" "groomers" {
   realm_id = keycloak_realm.app.id
-  name     = "Führungskräfte"
-}
-
-resource "keycloak_group" "angestellte" {
-  realm_id = keycloak_realm.app.id
-  name     = "Angestellte"
+  name     = "Groomer"
 }
 
 resource "keycloak_group" "kunden" {
@@ -133,21 +116,12 @@ resource "keycloak_group_roles" "admins_roles" {
   ]
 }
 
-resource "keycloak_group_roles" "fuehrungskraefte_roles" {
+resource "keycloak_group_roles" "groomers_roles" {
   realm_id = keycloak_realm.app.id
-  group_id = keycloak_group.fuehrungskraefte.id
+  group_id = keycloak_group.groomers.id
 
   role_ids = [
-    keycloak_role.app_roles["fuehrungskraft"].id
-  ]
-}
-
-resource "keycloak_group_roles" "angestellte_roles" {
-  realm_id = keycloak_realm.app.id
-  group_id = keycloak_group.angestellte.id
-
-  role_ids = [
-    keycloak_role.app_roles["angestellter"].id
+    keycloak_role.app_roles["groomer"].id
   ]
 }
 

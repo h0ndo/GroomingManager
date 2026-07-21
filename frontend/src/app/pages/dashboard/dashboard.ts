@@ -1,48 +1,662 @@
-import { JsonPipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { AuthService } from '../../core/auth.service';
 import { runtimeConfig } from '../../core/runtime-config';
+import {
+  CircularWorkPage,
+  CircularWorkPageContentType,
+  CircularWorkPageOrigin,
+} from '../../shared/circular-work-page/circular-work-page';
+import { WorkspaceGraph, WorkspaceGraphNode, WorkspaceGraphSelection } from '../../shared/workspace-graph/workspace-graph';
+import {
+  buildDashboardGraphEdges,
+  buildDashboardGraphNodes,
+  customerDisplayName,
+  expandableDashboardGraphNodeIds,
+  hasDashboardGraphChildren,
+  isDashboardGraphFullyExpanded,
+  isTopLevelDashboardGraphNode,
+  type DashboardGraphRole,
+  type CustomerInstance,
+} from './dashboard-graph.model';
 
 type MeResponse = {
   username: string;
   roles: string[];
 };
 
+type CustomerFavoriteDto = {
+  customerId: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  communicationNotes?: string | null;
+  profileImageBase64?: string | null;
+};
+
+type CustomerDto = {
+  id: number;
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  communicationNotes?: string | null;
+  profileImageBase64?: string | null;
+};
+
+type WorkspacePanelMode = 'overview' | 'list' | 'search' | 'create' | 'profile' | 'delete' | 'selected';
+type WorkspaceLayoutMode = 'focused-work' | 'custom-flex';
+
+type WorkspacePanel = {
+  mode: WorkspacePanelMode;
+  eyebrow: string;
+  title: string;
+  description: string;
+  node?: WorkspaceGraphNode;
+};
+
+type WorkspaceWorkPage = {
+  sourceNodeId: string;
+  sourceLabel: string;
+  sourceOrigin?: CircularWorkPageOrigin;
+  contentType: CircularWorkPageContentType;
+  title: string;
+  description?: string;
+  primaryActionLabel?: string;
+  secondaryActionLabel: string;
+  originLabel?: string;
+  busy?: boolean;
+  error?: string;
+  empty?: boolean;
+};
+
+type CustomerListItem = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  meta: string;
+  status: string;
+  email?: string;
+  phone?: string;
+  note?: string;
+  avatarUrl?: string;
+};
+
+type AgendaItem = {
+  time: string;
+  title: string;
+  detail: string;
+  status: string;
+};
+
 @Component({
   selector: 'app-dashboard',
-  imports: [ButtonModule, CardModule, JsonPipe, RouterLink, TagModule],
+  imports: [ButtonModule, CardModule, CircularWorkPage, FormsModule, RouterLink, TagModule, WorkspaceGraph],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard implements OnInit {
   protected readonly auth = inject(AuthService);
   private readonly http = inject(HttpClient);
+  private readonly hostElement: ElementRef<HTMLElement> = inject(ElementRef);
 
-  protected readonly status = signal<unknown>(null);
+  @ViewChild(WorkspaceGraph, { read: ElementRef }) private workspaceGraphElement?: ElementRef<HTMLElement>;
+
+  protected readonly backendConnection = signal<'checking' | 'connected' | 'unavailable'>('checking');
   protected readonly me = signal<MeResponse | null>(null);
-  protected readonly roleLabel = computed(() => this.resolveRoleLabel(this.me()?.roles ?? this.auth.roles(), this.preferredUsername()));
+  protected readonly activeNodeId = signal('start');
+  protected readonly expandedNodeIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly focusedTopLevelNodeId = signal<string | undefined>(undefined);
+  protected readonly layoutMode = signal<WorkspaceLayoutMode>('focused-work');
+  protected readonly selectedCustomer = signal<CustomerInstance | null>(null);
+  protected readonly favoriteCustomers = signal<CustomerInstance[]>([]);
+  protected readonly favoriteStatusMessage = signal('');
+  protected readonly favoriteOperationBusyCustomerIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly newCustomerName = signal('');
+  protected readonly customerCreateBusy = signal(false);
+  protected readonly customerCreateError = signal('');
+  protected readonly customerSearchTerm = signal('');
+  protected readonly customerSearchResults = signal<CustomerListItem[]>([]);
+  protected readonly customerSearchBusy = signal(false);
+  protected readonly customerSearchError = signal('');
+  protected readonly customerSearchResultLimit = 6;
+  protected readonly dailyAgendaItems: AgendaItem[] = [
+    { time: '09:00', title: 'Katja Gross · Nala', detail: 'Waschen, Schneiden · 75 min', status: 'Bestätigt' },
+    { time: '11:00', title: 'Mila Muster · Bruno', detail: 'Krallen, Ohren · 30 min', status: 'Anfrage' },
+    { time: '14:30', title: 'Alex Sommer · Loki', detail: 'Komplettpflege · 90 min', status: 'Geplant' },
+  ];
+  protected readonly activeWorkPage = signal<WorkspaceWorkPage | null>(null);
+  protected readonly visibleCustomerSearchResults = computed(() =>
+    this.customerSearchResults().slice(0, this.customerSearchResultLimit),
+  );
+  protected readonly customerSearchOverflowMessage = computed(() => {
+    const totalResultCount = this.customerSearchResults().length;
+
+    if (totalResultCount <= this.customerSearchResultLimit) {
+      return '';
+    }
+
+    return `${totalResultCount} Kunden gefunden. Bitte Suche verfeinern`;
+  });
+  protected readonly customerSearchEmptyMessage = computed(() => {
+    if (!this.customerSearchTerm().trim()) {
+      return 'Bitte gib einen Vor- oder Nachnamen ein.';
+    }
+
+    return 'Keine Kund:innen für diese Suche gefunden.';
+  });
+  protected readonly workspacePanel = signal<WorkspacePanel>({
+    mode: 'overview',
+    eyebrow: 'Start',
+    title: 'Arbeitsbereich wählen',
+    description:
+      'Wähle einen Kreis im Graphen. Domänenknoten öffnen Listen/Seitenkontexte, Aktionsknoten öffnen Formulare oder führen Arbeitsaktionen aus.',
+  });
+  protected readonly roleLabel = computed(() =>
+    this.resolveRoleLabel(this.me()?.roles ?? this.auth.roles(), this.preferredUsername()),
+  );
+  protected readonly graphRole = computed<DashboardGraphRole>(() =>
+    this.resolveGraphRole(this.me()?.roles ?? this.auth.roles(), this.preferredUsername()),
+  );
+  protected readonly selectedCustomerLabel = computed(() => {
+    const customer = this.selectedCustomer();
+
+    return customer ? customerDisplayName(customer) : '';
+  });
+  protected readonly backendConnectionLabel = computed(() => {
+    if (this.backendConnection() === 'connected') {
+      return 'Backend verbunden';
+    }
+
+    if (this.backendConnection() === 'unavailable') {
+      return 'Backend nicht erreichbar';
+    }
+
+    return 'Backend wird geprüft';
+  });
+  protected readonly backendConnectionSeverity = computed(() =>
+    this.backendConnection() === 'connected' ? 'success' : this.backendConnection() === 'unavailable' ? 'danger' : 'warn',
+  );
   protected readonly roleLinks = computed(() => [
     { label: 'Admin-Bereich', route: '/admin', icon: 'pi-shield', visible: this.auth.hasRole('ROLE_admin') },
-    {
-      label: 'Führungskraft-Bereich',
-      route: '/fuehrungskraft',
-      icon: 'pi-briefcase',
-      visible: this.auth.hasRole('ROLE_fuehrungskraft'),
-    },
-    { label: 'Angestellte-Bereich', route: '/angestellter', icon: 'pi-calendar', visible: this.auth.hasRole('ROLE_angestellter') },
+    { label: 'Groomer-Bereich', route: '/groomer', icon: 'pi-calendar', visible: this.auth.hasRole('ROLE_groomer') },
     { label: 'Kund:innen-Bereich', route: '/kunde', icon: 'pi-user', visible: this.auth.hasRole('ROLE_kunde') },
   ]);
+  protected readonly graphNodes = computed<WorkspaceGraphNode[]>(() =>
+    buildDashboardGraphNodes(
+      this.favoriteCustomers(),
+      this.expandedNodeIds(),
+      this.layoutMode() === 'focused-work' ? this.focusedTopLevelNodeId() : undefined,
+      this.graphRole(),
+    ),
+  );
+  protected readonly graphEdges = computed(() =>
+    buildDashboardGraphEdges(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole()),
+  );
+  protected readonly hasActiveWorkPage = computed(() => this.activeWorkPage() !== null);
+  private focusNodeAfterWorkPageClose: string | null = null;
+  private customerSearchBusyTimer: ReturnType<typeof setTimeout> | undefined;
 
   ngOnInit(): void {
-    this.http.get(`${runtimeConfig.apiBaseUrl}/status`).subscribe((status) => this.status.set(status));
+    this.http.get(`${runtimeConfig.apiBaseUrl}/status`).subscribe({
+      next: () => this.backendConnection.set('connected'),
+      error: () => this.backendConnection.set('unavailable'),
+    });
     if (this.auth.isAuthenticated()) {
-      this.http.get<MeResponse>(`${runtimeConfig.apiBaseUrl}/me`).subscribe((me) => this.me.set(me));
+      this.http.get<MeResponse>(`${runtimeConfig.apiBaseUrl}/me`).subscribe((me) => {
+        this.me.set(me);
+        this.loadCustomerFavorites();
+      });
     }
+  }
+
+  protected handleGraphSelection(selection: WorkspaceGraphSelection): void {
+    const node = selection.node;
+    this.activeNodeId.set(node.id);
+
+    if (this.layoutMode() === 'custom-flex' && node.id === 'start') {
+      this.toggleEntireGraph();
+    } else if (this.layoutMode() === 'focused-work' && isTopLevelDashboardGraphNode(node.id)) {
+      this.focusedTopLevelNodeId.set(node.id);
+      this.focusTopLevelExpansion(node.id);
+    } else if (hasDashboardGraphChildren(node.id, this.favoriteCustomers(), this.graphRole())) {
+      this.toggleExpandedNode(node.id);
+    }
+
+    if (node.id === 'customer-search') {
+      this.openCustomerSearchWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'search',
+        eyebrow: 'Kundenaktion',
+        title: 'Kundensuche geöffnet',
+        description:
+          'Suche Kund:innen über Vor- oder Nachname. Ergebnisse können als Arbeitsknoten am Favoritenbereich angeheftet werden.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id === 'customers' && this.canManageCustomers()) {
+      this.openCustomerSearchWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'search',
+        eyebrow: 'Kundendomäne',
+        title: 'Kundensuche geöffnet',
+        description: 'Der Kunden-Knoten öffnet für Admins und Groomer direkt die runde Suche nach Vor- und Nachname.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id === 'customer-add') {
+      this.openCustomerCreateWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'create',
+        eyebrow: 'Kundenaktion',
+        title: 'Kunden hinzufügen',
+        description:
+          'Das Formular ist als runde Work-Page über dem Graphen geöffnet. Nach dem Speichern erscheint der neue Kunde als Instanzknoten am Kunden-Domänenknoten.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id === 'customer-favorites') {
+      this.openCustomerListWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'list',
+        eyebrow: 'Kundenfavoriten',
+        title: 'Favoriten geöffnet',
+        description:
+          'Der Favoriten-Knoten bündelt bis zu sechs konkrete Kundeninstanzen für Groomer und Admins. Die Suche und die Favoritenverwaltung sind für die Rolle Kund:in ausgeblendet.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id === 'appointments') {
+      this.openDailyAgendaWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'list',
+        eyebrow: 'Tagesplanung',
+        title: 'Tagesplanung geöffnet',
+        description:
+          'Die Agenda ist ein Kalender-Renderer-Stub ohne echte Kalenderlogik. Sie bereitet Tagesnavigation und scrollbare Termine vor.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id.endsWith('-profile')) {
+      const customer = this.customerFromNode(node) ?? this.selectedCustomer();
+
+      if (customer) {
+        this.selectedCustomer.set(customer);
+        this.openCustomerProfileReadPage(customer, node, selection.sourceOrigin, 'Zum Kunden-Knoten');
+      }
+
+      this.workspacePanel.set({
+        mode: 'profile',
+        eyebrow: 'Kundenprofil',
+        title: `${customer ? customerDisplayName(customer) : 'Kunde'} ansehen`,
+        description: 'Das Profil ist zunächst als klarer Lesemodus geöffnet. Bearbeiten bleibt bewusst eine spätere Aktion.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id.endsWith('-delete')) {
+      const customer = this.customerFromNode(node) ?? this.selectedCustomer();
+
+      if (customer) {
+        this.selectedCustomer.set(customer);
+      }
+
+      this.workspacePanel.set({
+        mode: 'delete',
+        eyebrow: 'Kundenaktion',
+        title: `${customer ? customerDisplayName(customer) : 'Kunde'} löschen`,
+        description:
+          'Destruktive Aktionen werden als eigene Aktionsknoten modelliert und können später Bestätigungen, Rechteprüfung und API-Calls auslösen.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id.endsWith('-detach')) {
+      const customer = this.customerFromNode(node) ?? this.selectedCustomer();
+
+      this.removeFavoriteCustomer(customer);
+
+      this.selectedCustomer.set(null);
+      this.activeNodeId.set('customer-favorites');
+      this.workspacePanel.set({
+        mode: 'overview',
+        eyebrow: 'Kunden',
+        title: 'Kundenknoten gelöst',
+        description: 'Der konkrete Kunde wurde nur aus dem Arbeitsgraphen entfernt. Die Domäne und ihre Aktionen bleiben bestehen.',
+        node,
+      });
+      return;
+    }
+
+    if (node.kind === 'instance') {
+      const customer = this.customerFromNode(node);
+
+      if (customer) {
+        this.selectedCustomer.set(customer);
+        this.openCustomerProfileReadPage(customer, node, selection.sourceOrigin, 'Zum Favoriten-Knoten');
+      }
+
+      this.workspacePanel.set({
+        mode: customer ? 'profile' : 'selected',
+        eyebrow: 'Angeheftete Instanz',
+        title: customer ? `${customerDisplayName(customer)} ansehen` : node.label,
+        description: customer
+          ? 'Der Favoriten-Kundenknoten öffnet das Kundenprofil direkt im Lesemodus.'
+          : 'Dieser Kreis steht für ein konkretes Domänenobjekt, an dem gerade gearbeitet wird. Daran hängen kontextspezifische Aktionen.',
+        node,
+      });
+      return;
+    }
+
+    this.workspacePanel.set({
+      mode: node.kind === 'domain' || node.kind === 'page' ? 'list' : 'overview',
+      eyebrow: this.panelEyebrow(node),
+      title: node.label,
+      description: node.description ?? 'Graphknoten ausgewählt.',
+      node,
+    });
+  }
+
+  protected createCustomer(): void {
+    if (this.customerCreateBusy()) {
+      return;
+    }
+
+    const name = this.newCustomerName().trim() || 'Neuer Kunde';
+
+    this.customerCreateBusy.set(true);
+    this.customerCreateError.set('');
+    this.updateActiveWorkPageState({ busy: true, error: '' });
+    this.http.post<CustomerDto>(`${runtimeConfig.apiBaseUrl}/customers`, { displayName: name }).subscribe({
+      next: (createdCustomer) => {
+        const customer = this.customerInstanceFromDto(createdCustomer);
+
+        this.selectedCustomer.set(customer);
+        this.pinFavoriteCustomerLocally(customer);
+        this.expandNode('customers');
+        this.expandNode('customer-favorites');
+        this.expandNode(customer.id);
+        this.newCustomerName.set('');
+        this.activeNodeId.set(customer.id);
+        this.focusNodeAfterWorkPageClose = customer.id;
+        this.workspacePanel.set({
+          mode: 'selected',
+          eyebrow: 'Kundeninstanz',
+          title: `${customerDisplayName(customer)} angeheftet`,
+          description:
+            'Der neue Kunde wurde als konkreter Instanzknoten mit Profil-, Löschen- und Entfernen-Aktionen an den Kundenknoten gehängt.',
+        });
+        this.activeWorkPage.set(null);
+        setTimeout(() => this.focusWorkspaceNode(customer.id), 250);
+      },
+      error: () => {
+        this.customerCreateError.set('Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.');
+        this.customerCreateBusy.set(false);
+        this.activeNodeId.set('customer-add');
+        this.updateActiveWorkPageState({
+          busy: false,
+          error: 'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
+        });
+      },
+      complete: () => {
+        this.customerCreateBusy.set(false);
+        if (!this.customerCreateError()) {
+          this.updateActiveWorkPageState({ busy: false });
+        }
+      },
+    });
+  }
+
+  protected selectCustomerSearchResult(customer: CustomerListItem): void {
+    const customerInstance = {
+      id: customer.id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      email: customer.email,
+      phone: customer.phone,
+      meta: customer.meta,
+      status: customer.status,
+      note: customer.note,
+      avatarUrl: customer.avatarUrl,
+    };
+
+    this.selectedCustomer.set(customerInstance);
+    this.expandNode('customers');
+    this.activeNodeId.set(customer.id);
+    this.openCustomerProfileReadPage(customerInstance, this.activeWorkPageSourceNode(), undefined, 'Schließen');
+    this.workspacePanel.set({
+      mode: 'profile',
+      eyebrow: 'Kundensuche',
+      title: `${customer.name} im Lesemodus`,
+      description: 'Der gefundene Kunde wurde ohne globalen Favoritenstatus geöffnet. Groomer/Admins können ihn persönlich anheften.',
+    });
+  }
+
+  protected toggleFavoriteCustomer(customer: CustomerInstance | CustomerListItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    const customerInstance = this.customerInstanceFromCustomer(customer);
+    if (this.isFavoriteCustomer(customerInstance)) {
+      this.removeFavoriteCustomer(customerInstance);
+      return;
+    }
+
+    this.pinFavoriteCustomer(customerInstance);
+  }
+
+  protected isFavoriteCustomer(customer: CustomerInstance | CustomerListItem): boolean {
+    return this.favoriteCustomers().some((favorite) => favorite.id === customer.id);
+  }
+
+  protected favoriteActionLabel(customer: CustomerInstance | CustomerListItem): string {
+    return this.isFavoriteCustomer(customer) ? 'Aus Favoriten entfernen' : 'Als Favorit anheften';
+  }
+
+  protected favoriteStatusLabel(customer: CustomerInstance | CustomerListItem): string {
+    return this.isFavoriteCustomer(customer) ? 'Persönlicher Favorit' : 'Nicht angeheftet';
+  }
+
+  protected isFavoriteOperationBusy(customer: CustomerInstance | CustomerListItem): boolean {
+    return this.favoriteOperationBusyCustomerIds().has(customer.id);
+  }
+
+  protected customerProfileFieldValue(value: string | undefined): string {
+    return value?.trim() || 'Nicht hinterlegt';
+  }
+
+  protected selectedCustomerLabelFor(customer: CustomerInstance): string {
+    return customerDisplayName(customer);
+  }
+
+  protected updateCustomerSearchTerm(searchTerm: string): void {
+    this.customerSearchTerm.set(searchTerm);
+    const trimmedSearchTerm = searchTerm.trim();
+
+    if (!trimmedSearchTerm) {
+      this.clearCustomerSearchBusyTimer();
+      this.customerSearchResults.set([]);
+      this.customerSearchError.set('');
+      this.customerSearchBusy.set(false);
+      this.updateActiveWorkPageState({ busy: false, error: '', empty: false });
+      return;
+    }
+
+    this.customerSearchBusy.set(true);
+    this.customerSearchError.set('');
+    this.clearCustomerSearchBusyTimer();
+    this.customerSearchBusyTimer = setTimeout(() => {
+      this.updateActiveWorkPageState({ busy: true, error: '', empty: false });
+    });
+    this.http
+      .get<CustomerDto[]>(`${runtimeConfig.apiBaseUrl}/customers`, {
+        params: { query: trimmedSearchTerm, limit: String(this.customerSearchResultLimit + 1) },
+      })
+      .subscribe({
+        next: (customers) => {
+          this.clearCustomerSearchBusyTimer();
+          this.customerSearchResults.set(customers.map((customer) => this.customerListItemFromDto(customer)));
+          this.updateActiveWorkPageState({ busy: false, error: '', empty: false });
+        },
+        error: () => {
+          const errorMessage = 'Kunden konnten nicht geladen werden. Bitte versuche es erneut.';
+
+          this.clearCustomerSearchBusyTimer();
+          this.customerSearchResults.set([]);
+          this.customerSearchError.set(errorMessage);
+          this.updateActiveWorkPageState({ busy: false, error: errorMessage, empty: false });
+        },
+        complete: () => this.customerSearchBusy.set(false),
+      });
+  }
+
+  protected returnToCustomerSearch(): void {
+    const sourceNodeId = this.activeWorkPage()?.sourceNodeId ?? 'customer-search';
+    const sourceNode: WorkspaceGraphNode = {
+      id: sourceNodeId,
+      label: sourceNodeId === 'customers' ? 'Kunden' : 'Suchen',
+      kind: sourceNodeId === 'customers' ? 'domain' : 'action',
+    };
+
+    this.activeNodeId.set(sourceNodeId);
+    this.openCustomerSearchWorkPage(sourceNode, undefined, false);
+    this.focusCustomerSearchField();
+    this.workspacePanel.set({
+      mode: 'search',
+      eyebrow: 'Kundensuche',
+      title: 'Zur Kundensuche zurückgekehrt',
+      description: 'Du bist wieder in der Suche. Der zuvor geöffnete Kunde bleibt als Arbeitsknoten angeheftet.',
+    });
+  }
+
+  protected customerInitials(customer: CustomerListItem): string {
+    return `${customer.firstName.charAt(0)}${customer.lastName.charAt(0)}`.toLocaleUpperCase('de-DE');
+  }
+
+  protected handleWorkPagePrimaryAction(): void {
+    if (this.activeWorkPage()?.contentType === 'form') {
+      this.createCustomer();
+    }
+  }
+
+  protected cancelActiveWorkPage(): void {
+    const sourceNodeId = this.activeWorkPage()?.sourceNodeId ?? this.activeNodeId();
+
+    this.newCustomerName.set('');
+    this.customerSearchTerm.set('');
+    this.activeNodeId.set(sourceNodeId);
+    this.focusNodeAfterWorkPageClose = sourceNodeId;
+    this.workspacePanel.set({
+      mode: 'overview',
+      eyebrow: 'Arbeitsgraph',
+      title: 'Work-Page geschlossen',
+      description: 'Die runde Work-Page wurde geschlossen. Der Graph bleibt der zentrale Arbeitskontext.',
+    });
+  }
+
+  protected clearActiveWorkPage(): void {
+    this.activeWorkPage.set(null);
+    const nodeId = this.focusNodeAfterWorkPageClose ?? this.activeNodeId();
+
+    this.focusNodeAfterWorkPageClose = null;
+    setTimeout(() => this.focusWorkspaceNode(nodeId), 50);
+  }
+
+  protected setLayoutMode(mode: WorkspaceLayoutMode): void {
+    this.layoutMode.set(mode);
+
+    if (mode === 'focused-work') {
+      this.normalizeFocusedWorkState();
+    }
+  }
+
+  protected expandEntireGraph(): void {
+    this.expandedNodeIds.set(new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole())));
+  }
+
+  protected collapseEntireGraph(): void {
+    this.expandedNodeIds.set(new Set());
+  }
+
+  private toggleEntireGraph(): void {
+    if (isDashboardGraphFullyExpanded(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole())) {
+      this.collapseEntireGraph();
+      return;
+    }
+
+    this.expandEntireGraph();
+  }
+
+  private normalizeFocusedWorkState(): void {
+    const focusedTopLevelNodeId = this.focusedTopLevelNodeIdForActiveNode();
+    this.focusedTopLevelNodeId.set(focusedTopLevelNodeId);
+
+    if (!focusedTopLevelNodeId) {
+      this.expandedNodeIds.set(new Set());
+      return;
+    }
+
+    const nextExpandedNodeIds = new Set<string>([focusedTopLevelNodeId]);
+    const customer = this.selectedCustomer();
+
+    if (customer && this.activeNodeAncestorIds().includes(customer.id)) {
+      nextExpandedNodeIds.add(customer.id);
+    }
+
+    this.expandedNodeIds.set(nextExpandedNodeIds);
+  }
+
+  private focusedTopLevelNodeIdForActiveNode(): string | undefined {
+    const activeNodeId = this.activeNodeId();
+
+    if (isTopLevelDashboardGraphNode(activeNodeId)) {
+      return activeNodeId;
+    }
+
+    return this.activeNodeAncestorIds().find((nodeId) => isTopLevelDashboardGraphNode(nodeId));
+  }
+
+  private activeNodeAncestorIds(): string[] {
+    const expandedNodeIds = new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()));
+    const edges = buildDashboardGraphEdges(this.favoriteCustomers(), expandedNodeIds, this.graphRole());
+    const ancestors: string[] = [];
+    let currentNodeId = this.activeNodeId();
+
+    for (let i = 0; i < edges.length; i += 1) {
+      const parentNodeId = edges.find((edge) => edge.to === currentNodeId)?.from;
+
+      if (!parentNodeId) {
+        break;
+      }
+
+      ancestors.push(parentNodeId);
+      currentNodeId = parentNodeId;
+    }
+
+    return ancestors;
   }
 
   private preferredUsername(): string {
@@ -63,29 +677,20 @@ export class Dashboard implements OnInit {
       return 'Admin';
     }
 
-    if (roles.includes('ROLE_fuehrungskraft')) {
-      return 'Führungskraft';
-    }
-
-    if (roles.includes('ROLE_angestellter')) {
-      return 'Angestellte:r';
+    if (roles.includes('ROLE_groomer')) {
+      return 'Groomer';
     }
 
     if (roles.includes('ROLE_kunde')) {
       return 'Kund:in';
     }
 
-
     if (username.startsWith('admin@')) {
       return 'Admin';
     }
 
-    if (username.startsWith('fuehrungskraft@')) {
-      return 'Führungskraft';
-    }
-
-    if (username.startsWith('angestellter@')) {
-      return 'Angestellte:r';
+    if (username.startsWith('groomer@')) {
+      return 'Groomer';
     }
 
     if (username.startsWith('kunde@')) {
@@ -93,5 +698,433 @@ export class Dashboard implements OnInit {
     }
 
     return 'angemeldete:r Nutzer:in';
+  }
+
+  private resolveGraphRole(roles: string[], username: string): DashboardGraphRole {
+    if (roles.includes('ROLE_admin')) {
+      return 'admin';
+    }
+
+    if (roles.includes('ROLE_groomer')) {
+      return 'groomer';
+    }
+
+    if (roles.includes('ROLE_kunde')) {
+      return 'kunde';
+    }
+
+    if (username.startsWith('admin@')) {
+      return 'admin';
+    }
+
+    if (username.startsWith('groomer@')) {
+      return 'groomer';
+    }
+
+    if (username.startsWith('kunde@')) {
+      return 'kunde';
+    }
+
+    return 'unknown';
+  }
+
+  private toggleExpandedNode(nodeId: string): void {
+    this.expandedNodeIds.update((current) => {
+      const next = new Set(current);
+
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+
+      return next;
+    });
+  }
+
+  private focusTopLevelExpansion(nodeId: string): void {
+    this.expandedNodeIds.update((current) => {
+      if (current.has(nodeId)) {
+        return new Set();
+      }
+
+      const next = new Set<string>([nodeId]);
+      const activeAncestors = this.activeNodeAncestorIds();
+
+      if (nodeId === 'customers' && current.has('customer-favorites')) {
+        next.add('customer-favorites');
+      }
+
+      if (nodeId === 'customers') {
+        this.favoriteCustomers().forEach((customer) => {
+          if (current.has(customer.id) || activeAncestors.includes(customer.id)) {
+            next.add(customer.id);
+          }
+        });
+      }
+
+      return next;
+    });
+  }
+
+  private expandNode(nodeId: string): void {
+    this.expandedNodeIds.update((current) => {
+      if (current.has(nodeId)) {
+        return current;
+      }
+
+      return new Set([...Array.from(current), nodeId]);
+    });
+  }
+
+  private loadCustomerFavorites(): void {
+    if (!this.canManageCustomers()) {
+      this.favoriteCustomers.set([]);
+      return;
+    }
+
+    this.http.get<CustomerFavoriteDto[]>(`${runtimeConfig.apiBaseUrl}/customer-favorites`).subscribe({
+      next: (favorites) => this.favoriteCustomers.set(favorites.map((favorite) => this.customerFavoriteFromDto(favorite))),
+      error: () =>
+        this.favoriteStatusMessage.set(
+          'Favoriten konnten nicht geladen werden. Die Suche bleibt nutzbar, Anheften kann fehlschlagen.',
+        ),
+    });
+  }
+
+  private pinFavoriteCustomer(customer: CustomerInstance): void {
+    this.setFavoriteOperationBusy(customer.id, true);
+    this.favoriteStatusMessage.set('');
+    this.http.post<CustomerFavoriteDto>(`${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`, {}).subscribe({
+      next: (favorite) => {
+        const pinnedCustomer = { ...customer, ...this.customerFavoriteFromDto(favorite) };
+
+        this.pinFavoriteCustomerLocally(pinnedCustomer);
+        this.selectedCustomer.update((selectedCustomer) =>
+          selectedCustomer?.id === pinnedCustomer.id ? { ...selectedCustomer, ...pinnedCustomer } : selectedCustomer,
+        );
+        this.expandNode('customers');
+        this.expandNode('customer-favorites');
+        this.activeNodeId.set(pinnedCustomer.id);
+        this.focusNodeAfterWorkPageClose = pinnedCustomer.id;
+        this.favoriteStatusMessage.set(`${customerDisplayName(pinnedCustomer)} ist jetzt dein persönlicher Favorit.`);
+        this.workspacePanel.set({
+          mode: 'selected',
+          eyebrow: 'Kundenfavorit',
+          title: `${customerDisplayName(pinnedCustomer)} angeheftet`,
+          description: 'Der Favoritenstatus kommt aus deiner persönlichen Favoritenliste und ist nicht global am Kunden gespeichert.',
+        });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handleFavoriteError(error);
+        this.setFavoriteOperationBusy(customer.id, false);
+      },
+      complete: () => this.setFavoriteOperationBusy(customer.id, false),
+    });
+  }
+
+  private removeFavoriteCustomer(customer: CustomerInstance | null): void {
+    if (!customer || !this.canManageCustomers()) {
+      return;
+    }
+
+    this.setFavoriteOperationBusy(customer.id, true);
+    this.favoriteStatusMessage.set('');
+    this.http.delete<void>(`${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`).subscribe({
+      next: () => {
+        this.favoriteCustomers.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
+        this.favoriteStatusMessage.set(`${customerDisplayName(customer)} wurde aus deinen persönlichen Favoriten entfernt.`);
+      },
+      error: () => {
+        this.favoriteStatusMessage.set('Favorit konnte nicht entfernt werden. Bitte versuche es erneut.');
+        this.setFavoriteOperationBusy(customer.id, false);
+      },
+      complete: () => this.setFavoriteOperationBusy(customer.id, false),
+    });
+  }
+
+  private pinFavoriteCustomerLocally(customer: CustomerInstance): void {
+    this.favoriteCustomers.update((customers) => {
+      const withoutDuplicate = customers.filter((candidate) => candidate.id !== customer.id);
+
+      return [customer, ...withoutDuplicate].slice(0, 6);
+    });
+  }
+
+  private handleFavoriteError(error: HttpErrorResponse): void {
+    if (error.status === 409) {
+      this.favoriteStatusMessage.set(
+        'Du hast bereits 6 persönliche Favoriten. Entferne erst einen Favoriten, bevor du einen neuen anheftest.',
+      );
+      return;
+    }
+
+    this.favoriteStatusMessage.set('Favorit konnte nicht angeheftet werden. Bitte versuche es erneut.');
+  }
+
+  private setFavoriteOperationBusy(customerId: string, busy: boolean): void {
+    this.favoriteOperationBusyCustomerIds.update((current) => {
+      const next = new Set(current);
+
+      if (busy) {
+        next.add(customerId);
+      } else {
+        next.delete(customerId);
+      }
+
+      return next;
+    });
+  }
+
+  private updateActiveWorkPageState(state: Partial<Pick<WorkspaceWorkPage, 'busy' | 'error' | 'empty'>>): void {
+    this.activeWorkPage.update((workPage) => (workPage ? { ...workPage, ...state } : workPage));
+  }
+
+  private clearCustomerSearchBusyTimer(): void {
+    if (this.customerSearchBusyTimer) {
+      clearTimeout(this.customerSearchBusyTimer);
+      this.customerSearchBusyTimer = undefined;
+    }
+  }
+
+  private customerListItemFromDto(customer: CustomerDto): CustomerListItem {
+    const customerInstance = this.customerInstanceFromDto(customer);
+
+    return {
+      ...customerInstance,
+      name: customerDisplayName(customerInstance),
+      meta: customerInstance.meta ?? 'Kontaktprofil',
+      status: customerInstance.status ?? 'Kund:in',
+      note: customerInstance.note,
+    };
+  }
+
+  private customerInstanceFromDto(customer: CustomerDto): CustomerInstance {
+    const { firstName, lastName } = this.customerNameParts(customer);
+
+    return {
+      id: String(customer.id),
+      firstName,
+      lastName,
+      email: this.blankToUndefined(customer.email),
+      phone: this.blankToUndefined(customer.phone),
+      meta: this.blankToUndefined(customer.communicationNotes) ?? 'Kontaktprofil',
+      status: 'Kund:in',
+      note: this.blankToUndefined(customer.communicationNotes),
+      avatarUrl: customer.profileImageBase64 ? `data:image/*;base64,${customer.profileImageBase64}` : undefined,
+    };
+  }
+
+  private customerNameParts(customer: CustomerDto | CustomerFavoriteDto): { firstName: string; lastName: string } {
+    const explicitFirstName = this.blankToUndefined(customer.firstName);
+    const explicitLastName = this.blankToUndefined(customer.lastName);
+
+    if (explicitFirstName || explicitLastName) {
+      return { firstName: explicitFirstName ?? '', lastName: explicitLastName ?? '' };
+    }
+
+    const displayName = this.blankToUndefined(customer.displayName) ?? 'Kunde';
+    const [firstName, ...lastNameParts] = displayName.split(/\s+/);
+
+    return { firstName: firstName || 'Kunde', lastName: lastNameParts.join(' ') };
+  }
+
+  private blankToUndefined(value: string | null | undefined): string | undefined {
+    const trimmedValue = value?.trim();
+
+    return trimmedValue ? trimmedValue : undefined;
+  }
+
+  private customerFavoriteFromDto(favorite: CustomerFavoriteDto): CustomerInstance {
+    const { firstName, lastName } = this.customerNameParts(favorite);
+
+    return {
+      id: String(favorite.customerId),
+      firstName,
+      lastName,
+      email: this.blankToUndefined(favorite.email),
+      phone: this.blankToUndefined(favorite.phone),
+      meta: this.blankToUndefined(favorite.communicationNotes),
+      status: 'Kund:in',
+      note: this.blankToUndefined(favorite.communicationNotes),
+      avatarUrl: favorite.profileImageBase64 ? `data:image/*;base64,${favorite.profileImageBase64}` : undefined,
+    };
+  }
+
+  private customerInstanceFromCustomer(customer: CustomerInstance | CustomerListItem): CustomerInstance {
+    return {
+      id: customer.id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      email: customer.email,
+      phone: customer.phone,
+      meta: customer.meta,
+      status: customer.status,
+      note: customer.note,
+      avatarUrl: customer.avatarUrl,
+    };
+  }
+
+  private customerFromNode(node: WorkspaceGraphNode): CustomerInstance | null {
+    if (this.isCustomerInstance(node.payload)) {
+      return node.payload;
+    }
+
+    return this.favoriteCustomers().find((customer) => customer.id === node.id) ?? null;
+  }
+
+  private isCustomerInstance(value: unknown): value is CustomerInstance {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'id' in value &&
+      'firstName' in value &&
+      'lastName' in value &&
+      typeof value.id === 'string' &&
+      typeof value.firstName === 'string' &&
+      typeof value.lastName === 'string'
+    );
+  }
+
+  private openCustomerCreateWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
+    this.focusNodeAfterWorkPageClose = node.id;
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'form',
+      title: 'Kunden hinzufügen',
+      description: 'Lege einen ersten Kundenknoten an. Der Inhalt ist austauschbar, die runde Shell bleibt wiederverwendbar.',
+      originLabel: `aus Knoten ${node.label}`,
+      primaryActionLabel: 'Speichern',
+      secondaryActionLabel: 'Abbrechen',
+    });
+  }
+
+  private openCustomerSearchWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined, resetSearchTerm = true): void {
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    if (resetSearchTerm) {
+      this.customerSearchTerm.set('');
+      this.customerSearchResults.set([]);
+      this.customerSearchError.set('');
+      this.customerSearchBusy.set(false);
+    }
+    this.focusNodeAfterWorkPageClose = node.id;
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'search',
+      title: 'Kundensuche',
+      description: 'Finde Kund:innen über Vor- oder Nachname und hefte sie als Arbeitsknoten an.',
+      originLabel: `aus Knoten ${node.label}`,
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Schließen',
+      empty: false,
+    });
+  }
+
+  private openCustomerProfileReadPage(
+    customer: CustomerInstance,
+    sourceNode: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+    secondaryActionLabel: string,
+  ): void {
+    this.focusNodeAfterWorkPageClose = customer.id;
+    this.activeWorkPage.set({
+      sourceNodeId: sourceNode.id,
+      sourceLabel: sourceNode.label,
+      sourceOrigin,
+      contentType: 'detail',
+      title: `${customerDisplayName(customer)} Profil`,
+      description: 'Lesemodus: Stammdaten und verfügbare Kontaktinformationen, ohne direkte Bearbeitung.',
+      originLabel: `aus Knoten ${sourceNode.label}`,
+      primaryActionLabel: '',
+      secondaryActionLabel,
+    });
+    this.focusCustomerProfileRegion();
+  }
+
+  private activeWorkPageSourceNode(): WorkspaceGraphNode {
+    const activeWorkPage = this.activeWorkPage();
+
+    return {
+      id: activeWorkPage?.sourceNodeId ?? 'customer-search',
+      label: activeWorkPage?.sourceLabel ?? 'Suchen',
+      kind: activeWorkPage?.sourceNodeId === 'customers' ? 'domain' : 'action',
+    };
+  }
+
+  private focusCustomerSearchField(): void {
+    setTimeout(() => this.hostElement.nativeElement.querySelector<HTMLElement>('#workPageCustomerSearch')?.focus());
+  }
+
+  private focusCustomerProfileRegion(): void {
+    setTimeout(() => this.hostElement.nativeElement.querySelector<HTMLElement>('#customerProfileReadMode')?.focus());
+  }
+
+  private openCustomerListWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
+    const isFavoritesNode = node.id === 'customer-favorites';
+
+    this.focusNodeAfterWorkPageClose = node.id;
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'list',
+      title: isFavoritesNode ? 'Kundenfavoriten' : 'Kundenliste',
+      description: isFavoritesNode
+        ? 'Bis zu sechs favorisierte Kund:innen sind als Instanzknoten direkt am Favoriten-Knoten sichtbar.'
+        : 'Wähle eine Kund:in aus, um sie im Arbeitsgraphen weiterzubearbeiten.',
+      originLabel: isFavoritesNode ? 'aus Knoten Favoriten' : 'aus Knoten Kund:innen',
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Schließen',
+      empty: this.favoriteCustomers().length === 0,
+    });
+  }
+
+  private openDailyAgendaWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
+    this.focusNodeAfterWorkPageClose = node.id;
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'calendar',
+      title: 'Tagesplanung',
+      description: 'Überblick über die heutigen Termine als scrollbare Agenda. Noch ohne echte Kalenderlogik.',
+      originLabel: 'aus Knoten Kalender',
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Schließen',
+      empty: this.dailyAgendaItems.length === 0,
+    });
+  }
+
+  private panelEyebrow(node: WorkspaceGraphNode): string {
+    if (node.kind === 'domain') {
+      return 'Domäne';
+    }
+
+    if (node.kind === 'page') {
+      return 'Seitenkontext';
+    }
+
+    if (node.kind === 'action') {
+      return 'Aktion';
+    }
+
+    return 'Arbeitsgraph';
+  }
+
+  protected canManageCustomers(): boolean {
+    const role = this.graphRole();
+
+    return role === 'admin' || role === 'groomer';
+  }
+
+  private focusWorkspaceNode(nodeId: string): void {
+    this.workspaceGraphElement?.nativeElement.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)?.focus();
   }
 }

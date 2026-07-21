@@ -5,7 +5,7 @@ import { RolePage } from './pages/role-page/role-page';
 import { authGuard, roleGuard } from './core/auth.guard';
 
 export const routes: Routes = [
-  { path: '', component: Home, canActivate: [authGuard] },
+  { path: '', component: Home },
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
   {
     path: 'admin',
@@ -21,29 +21,16 @@ export const routes: Routes = [
     },
   },
   {
-    path: 'fuehrungskraft',
+    path: 'groomer',
     component: RolePage,
-    canActivate: [roleGuard('ROLE_fuehrungskraft')],
+    canActivate: [roleGuard('ROLE_groomer')],
     data: {
-      eyebrow: 'Führungskraft-Bereich',
-      title: 'Führungskraft Cockpit',
-      roleLabel: 'Führungskraft',
-      description: 'Platzhalter für Teamsteuerung, Kapazitätsüberblick und operative Entscheidungen.',
+      eyebrow: 'Groomer-Bereich',
+      title: 'Groomer Arbeitsplatz',
+      roleLabel: 'Groomer',
+      description: 'Platzhalter für Tagesplan, Tierprofile, Kund:innen-Akten und Grooming-Dokumentation.',
       tagSeverity: 'info',
-      items: ['Team-Auslastung prüfen', 'Angestellte und Termine koordinieren', 'Kapazitäts- und Anfrageübersicht steuern'],
-    },
-  },
-  {
-    path: 'angestellter',
-    component: RolePage,
-    canActivate: [roleGuard('ROLE_angestellter')],
-    data: {
-      eyebrow: 'Angestellte-Bereich',
-      title: 'Angestellte Arbeitsplatz',
-      roleLabel: 'Angestellte:r',
-      description: 'Platzhalter für Tagesplan, Kund:innen-Akten und Vorgangsdokumentation.',
-      tagSeverity: 'info',
-      items: ['Tagesplan und Termine sehen', 'Kund:innen-Kontext öffnen', 'Vorgang und Dokumente dokumentieren'],
+      items: ['Tagesplan und Termine sehen', 'Tierprofile und Kund:innen-Kontext öffnen', 'Grooming-Dokumentation pflegen'],
     },
   },
   {

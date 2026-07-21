@@ -3,6 +3,8 @@ package de.groomingmanager.backend.actuator;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.groomingmanager.backend.repository.AppointmentRepository;
+import de.groomingmanager.backend.repository.CustomerFavoriteRepository;
+import de.groomingmanager.backend.repository.CustomerRepository;
 import de.groomingmanager.backend.repository.PetRepository;
 import de.groomingmanager.backend.repository.ServiceOfferingRepository;
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,8 @@ class HealthEndpointTest {
   @Autowired private TestRestTemplate restTemplate;
 
   @MockitoBean private AppointmentRepository appointmentRepository;
+  @MockitoBean private CustomerFavoriteRepository customerFavoriteRepository;
+  @MockitoBean private CustomerRepository customerRepository;
   @MockitoBean private PetRepository petRepository;
   @MockitoBean private ServiceOfferingRepository serviceOfferingRepository;
 

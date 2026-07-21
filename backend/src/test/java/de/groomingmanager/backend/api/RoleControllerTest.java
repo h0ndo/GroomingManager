@@ -22,8 +22,7 @@ class RoleControllerTest {
   @Test
   void roleEndpointsRequireAuthentication() throws Exception {
     mockMvc.perform(get("/api/admin/me")).andExpect(status().isUnauthorized());
-    mockMvc.perform(get("/api/fuehrungskraft/me")).andExpect(status().isUnauthorized());
-    mockMvc.perform(get("/api/angestellter/me")).andExpect(status().isUnauthorized());
+    mockMvc.perform(get("/api/groomer/me")).andExpect(status().isUnauthorized());
     mockMvc.perform(get("/api/kunde/me")).andExpect(status().isUnauthorized());
   }
 
@@ -38,26 +37,13 @@ class RoleControllerTest {
   }
 
   @Test
-  void fuehrungskraftEndpointAllowsFuehrungskraft() throws Exception {
+  void groomerEndpointAllowsGroomer() throws Exception {
     mockMvc
-        .perform(
-            get("/api/fuehrungskraft/me")
-                .with(jwtWithRole("fuehrungskraft-1", "ROLE_fuehrungskraft")))
+        .perform(get("/api/groomer/me").with(jwtWithRole("groomer-1", "ROLE_groomer")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.area").value("fuehrungskraft"))
-        .andExpect(jsonPath("$.username").value("fuehrungskraft-1"))
-        .andExpect(jsonPath("$.roles[0]").value("ROLE_fuehrungskraft"));
-  }
-
-  @Test
-  void angestellterEndpointAllowsAngestellter() throws Exception {
-    mockMvc
-        .perform(
-            get("/api/angestellter/me").with(jwtWithRole("angestellter-1", "ROLE_angestellter")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.area").value("angestellter"))
-        .andExpect(jsonPath("$.username").value("angestellter-1"))
-        .andExpect(jsonPath("$.roles[0]").value("ROLE_angestellter"));
+        .andExpect(jsonPath("$.area").value("groomer"))
+        .andExpect(jsonPath("$.username").value("groomer-1"))
+        .andExpect(jsonPath("$.roles[0]").value("ROLE_groomer"));
   }
 
   @Test
@@ -76,13 +62,10 @@ class RoleControllerTest {
         .perform(get("/api/admin/me").with(jwtWithRole("kunde-1", "ROLE_kunde")))
         .andExpect(status().isForbidden());
     mockMvc
-        .perform(get("/api/fuehrungskraft/me").with(jwtWithRole("admin-1", "ROLE_admin")))
+        .perform(get("/api/groomer/me").with(jwtWithRole("admin-1", "ROLE_admin")))
         .andExpect(status().isForbidden());
     mockMvc
-        .perform(get("/api/angestellter/me").with(jwtWithRole("admin-1", "ROLE_admin")))
-        .andExpect(status().isForbidden());
-    mockMvc
-        .perform(get("/api/kunde/me").with(jwtWithRole("angestellter-1", "ROLE_angestellter")))
+        .perform(get("/api/kunde/me").with(jwtWithRole("groomer-1", "ROLE_groomer")))
         .andExpect(status().isForbidden());
   }
 

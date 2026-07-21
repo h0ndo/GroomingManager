@@ -37,6 +37,20 @@ npm audit --audit-level=high
 
 Damit blockieren nur ernstere Dependency-Probleme. Niedrige Findings werden dokumentiert, aber nicht als hartes CI-Kriterium behandelt.
 
+## Keycloak Registrierung und E-Mail-Verifizierung
+
+GroomingManager erlaubt öffentliche Registrierung für Kund:innen über Keycloak. Dabei gilt:
+
+```text
+registration_allowed = true
+registration_email_as_username = true
+verify_email = true
+```
+
+Der Registrieren-Button der öffentlichen Startseite führt direkt auf den Keycloak-Registrierungs-Endpunkt. Keycloak nutzt die E-Mail-Adresse als Benutzername und fordert eine E-Mail-Verifizierung, bevor der Account vollständig nutzbar ist.
+
+Wichtig: Für echte Kundeninstanzen muss SMTP im Keycloak-Realm bzw. in der Keycloak-Instanz konfiguriert sein. Ohne funktionierenden SMTP-Versand kann Keycloak keine Verifikationsmails zustellen.
+
 ## Backend Rollenautorisierung
 
 Das Backend nutzt Spring Security Method Security:
@@ -44,26 +58,23 @@ Das Backend nutzt Spring Security Method Security:
 ```text
 @EnableMethodSecurity
 @PreAuthorize("hasRole('admin')")
-@PreAuthorize("hasRole('fuehrungskraft')")
-@PreAuthorize("hasRole('angestellter')")
+@PreAuthorize("hasRole('groomer')")
 @PreAuthorize("hasRole('kunde')")
 ```
 
 Die Keycloak-Realm-Rollen werden aus dem JWT auf Spring Authorities gemappt:
 
 ```text
-admin           -> ROLE_admin
-fuehrungskraft -> ROLE_fuehrungskraft
-angestellter       -> ROLE_angestellter
-kunde         -> ROLE_kunde
+admin   -> ROLE_admin
+groomer -> ROLE_groomer
+kunde   -> ROLE_kunde
 ```
 
 Aktuelle rollenbezogene Test-Endpunkte:
 
 ```text
 GET /api/admin/me
-GET /api/fuehrungskraft/me
-GET /api/angestellter/me
+GET /api/groomer/me
 GET /api/kunde/me
 ```
 

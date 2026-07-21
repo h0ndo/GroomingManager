@@ -2,6 +2,8 @@ package de.groomingmanager.backend.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -34,6 +36,10 @@ public class Appointment {
 
   @Column(name = "service_price", precision = 10, scale = 2)
   private BigDecimal servicePrice;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private AppointmentStatus status = AppointmentStatus.REQUESTED;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt = Instant.now();
@@ -92,6 +98,14 @@ public class Appointment {
 
   public void setServicePrice(BigDecimal servicePrice) {
     this.servicePrice = servicePrice;
+  }
+
+  public AppointmentStatus getStatus() {
+    return status;
+  }
+
+  public void setStatus(AppointmentStatus status) {
+    this.status = status == null ? AppointmentStatus.REQUESTED : status;
   }
 
   public Instant getCreatedAt() {

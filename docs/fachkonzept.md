@@ -69,8 +69,7 @@ Kund:innen können optional über ein Portal eingebunden werden:
 
 ```text
 GET /api/admin/me
-GET /api/fuehrungskraft/me
-GET /api/angestellter/me
+GET /api/groomer/me
 GET /api/kunde/me
 ```
 

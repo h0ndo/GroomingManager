@@ -31,10 +31,10 @@ class MeControllerTest {
             get("/api/me")
                 .with(
                     jwt()
-                        .jwt(token -> token.subject("angestellter-1"))
-                        .authorities(new SimpleGrantedAuthority("ROLE_angestellter"))))
+                        .jwt(token -> token.subject("groomer-1"))
+                        .authorities(new SimpleGrantedAuthority("ROLE_groomer"))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.username").value("angestellter-1"))
-        .andExpect(jsonPath("$.roles[0]").value("ROLE_angestellter"));
+        .andExpect(jsonPath("$.username").value("groomer-1"))
+        .andExpect(jsonPath("$.roles[0]").value("ROLE_groomer"));
   }
 }

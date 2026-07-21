@@ -1,21 +1,312 @@
 <section class="dashboard">
-  <header>
+  <header class="dashboard__header">
     <div>
       <p class="eyebrow">Dashboard</p>
       <h1>Willkommen im GroomingManager</h1>
+      <p class="dashboard__intro">Der neue Arbeitsgraph verbindet Navigation, Domänenobjekte, konkrete Instanzen und Aktionen in einer Oberfläche.</p>
     </div>
-    @if (auth.isAuthenticated()) {
-      <button pButton type="button" severity="secondary" (click)="auth.logout()">
-        <span pButtonIcon class="pi pi-sign-out"></span>
-        <span pButtonLabel>Abmelden</span>
-      </button>
-    } @else {
-      <button pButton type="button" (click)="auth.login()">
-        <span pButtonIcon class="pi pi-sign-in"></span>
-        <span pButtonLabel>Anmelden</span>
-      </button>
-    }
+    <div class="dashboard__actions">
+      <div class="layout-switch" aria-label="Arbeitsgraph-Modus">
+        <button pButton type="button" [severity]="layoutMode() === 'focused-work' ? 'primary' : 'secondary'" (click)="setLayoutMode('focused-work')">
+          <span pButtonIcon class="pi pi-compass"></span>
+          <span pButtonLabel>Focused Work</span>
+        </button>
+        <button pButton type="button" [severity]="layoutMode() === 'custom-flex' ? 'primary' : 'secondary'" (click)="setLayoutMode('custom-flex')">
+          <span pButtonIcon class="pi pi-arrows-alt"></span>
+          <span pButtonLabel>Custom Flex</span>
+        </button>
+      </div>
+
+      @if (layoutMode() === 'custom-flex') {
+        <div class="flex-tree-controls" aria-label="Custom-Flex-Knotensteuerung">
+          <button pButton type="button" severity="secondary" (click)="expandEntireGraph()">
+            <span pButtonIcon class="pi pi-plus-circle"></span>
+            <span pButtonLabel>Alles aufklappen</span>
+          </button>
+          <button pButton type="button" severity="secondary" (click)="collapseEntireGraph()">
+            <span pButtonIcon class="pi pi-minus-circle"></span>
+            <span pButtonLabel>Alles zuklappen</span>
+          </button>
+        </div>
+      }
+
+      @if (auth.isAuthenticated()) {
+        <button pButton type="button" severity="secondary" (click)="auth.logout()">
+          <span pButtonIcon class="pi pi-sign-out"></span>
+          <span pButtonLabel>Abmelden</span>
+        </button>
+      } @else {
+        <button pButton type="button" (click)="auth.login()">
+          <span pButtonIcon class="pi pi-sign-in"></span>
+          <span pButtonLabel>Anmelden</span>
+        </button>
+      }
+    </div>
   </header>
+
+  <div class="workspace-shell">
+    <app-workspace-graph
+      [nodes]="graphNodes()"
+      [edges]="graphEdges()"
+      [activeNodeId]="activeNodeId()"
+      [centeredNodeId]="layoutMode() === 'focused-work' ? activeNodeId() : ''"
+      [lockAnchoredNodesToAutoLayout]="layoutMode() === 'focused-work'"
+      [showFitToViewControl]="layoutMode() === 'custom-flex'"
+      [attr.inert]="hasActiveWorkPage() ? '' : null"
+      [attr.aria-hidden]="hasActiveWorkPage() ? 'true' : null"
+      (nodeActivated)="handleGraphSelection($event)"
+    ></app-workspace-graph>
+
+    @if (activeWorkPage(); as workPage) {
+      <app-circular-work-page
+        [title]="workPage.title"
+        [description]="workPage.description ?? ''"
+        [contentType]="workPage.contentType"
+        [sourceLabel]="workPage.sourceLabel"
+        [sourceOrigin]="workPage.sourceOrigin"
+        [originLabel]="workPage.originLabel ?? ''"
+        [primaryActionLabel]="workPage.primaryActionLabel ?? ''"
+        [secondaryActionLabel]="workPage.secondaryActionLabel"
+        [busy]="workPage.busy ?? false"
+        [error]="workPage.error ?? ''"
+        [empty]="workPage.empty ?? false"
+        [preserveContentWhileBusy]="workPage.contentType === 'search'"
+        (primaryAction)="handleWorkPagePrimaryAction()"
+        (secondaryAction)="cancelActiveWorkPage()"
+        (closed)="clearActiveWorkPage()"
+      >
+        @switch (workPage.contentType) {
+          @case ('search') {
+            <div class="work-page-search" role="search" aria-label="Kundensuche nach Vor- und Nachname">
+              <label for="workPageCustomerSearch">Kund:in suchen</label>
+              <input
+                id="workPageCustomerSearch"
+                name="workPageCustomerSearch"
+                type="search"
+                [ngModel]="customerSearchTerm()"
+                (ngModelChange)="updateCustomerSearchTerm($event)"
+                placeholder="Vorname oder Nachname"
+                autocomplete="off"
+              />
+              <p class="work-page-search__hint">Die Suche berücksichtigt Vorname und Nachname. Kund:innen haben auf diese Suche keinen Zugriff.</p>
+              @if (customerSearchBusy()) {
+                <p class="work-page-search__empty" role="status">Kundensuche wird geladen…</p>
+              }
+              <div class="work-page-search__items" role="list" aria-label="Suchergebnisse">
+                @for (customer of visibleCustomerSearchResults(); track customer.id) {
+                  <article class="work-page-search__item work-page-search__item--avatar-node" role="listitem">
+                    <button
+                      type="button"
+                      class="work-page-search__profile"
+                      [attr.aria-label]="customer.name + ', ' + customer.status + ', Kundenprofil im Lesemodus öffnen'"
+                      (click)="selectCustomerSearchResult(customer)"
+                      (keydown.enter)="selectCustomerSearchResult(customer)"
+                    >
+                      <span class="work-page-search__avatar" aria-hidden="true">
+                        @if (customer.avatarUrl) {
+                          <img [src]="customer.avatarUrl" alt="" />
+                        } @else {
+                          {{ customerInitials(customer) }}
+                        }
+                      </span>
+                      <strong>{{ customer.name }}</strong>
+                      <small>{{ customer.status }}</small>
+                      <span class="work-page-search__favorite-state">{{ favoriteStatusLabel(customer) }}</span>
+                    </button>
+                    @if (canManageCustomers()) {
+                      <button
+                        type="button"
+                        class="favorite-toggle"
+                        [disabled]="isFavoriteOperationBusy(customer)"
+                        [attr.aria-pressed]="isFavoriteCustomer(customer)"
+                        [attr.aria-label]="customer.name + ': ' + favoriteActionLabel(customer)"
+                        (click)="toggleFavoriteCustomer(customer, $event)"
+                      >
+                        <span class="pi" [class.pi-star-fill]="isFavoriteCustomer(customer)" [class.pi-star]="!isFavoriteCustomer(customer)" aria-hidden="true"></span>
+                        {{ favoriteActionLabel(customer) }}
+                      </button>
+                    }
+                  </article>
+                } @empty {
+                  <p class="work-page-search__empty" role="status">{{ customerSearchEmptyMessage() }}</p>
+                }
+              </div>
+              @if (favoriteStatusMessage()) {
+                <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
+              }
+              @if (customerSearchOverflowMessage()) {
+                <p class="work-page-search__refine-hint" role="status">{{ customerSearchOverflowMessage() }}</p>
+              }
+            </div>
+          }
+          @case ('form') {
+            <div class="workspace-form workspace-form--work-page" role="group" aria-label="Kundenformular">
+              <label for="workPageCustomerName">Name des Kunden</label>
+              <input
+                id="workPageCustomerName"
+                name="workPageCustomerName"
+                type="text"
+                [ngModel]="newCustomerName()"
+                (ngModelChange)="newCustomerName.set($event)"
+                placeholder="z. B. Katja Gross"
+              />
+              <p>Die Shell liefert Titel, Beschreibung, Content-Slot und runde Aktionen; der Inhalt bleibt austauschbar.</p>
+            </div>
+          }
+          @case ('list') {
+            <div class="work-page-list-stub" aria-label="Kundenliste Beispielinhalt">
+              <label for="workPageCustomerFilter">Kund:innen filtern</label>
+              <input id="workPageCustomerFilter" type="search" placeholder="Suche folgt im Fach-Slice" />
+              <div class="work-page-list-stub__items" role="list" aria-label="Kund:innen">
+                @for (customer of favoriteCustomers(); track customer.id) {
+                  <button type="button" class="work-page-list-stub__item" role="listitem">
+                    <strong>{{ selectedCustomerLabelFor(customer) }}</strong>
+                    <span>{{ customerProfileFieldValue(customer.meta) }}</span>
+                    <small>{{ customerProfileFieldValue(customer.status) }}</small>
+                  </button>
+                }
+              </div>
+              @if (favoriteCustomers().length === 0) {
+                <p class="work-page-list-stub__empty">Noch keine Kund:innen vorhanden. Kund:in hinzufügen.</p>
+              }
+            </div>
+          }
+          @case ('calendar') {
+            <div class="work-page-agenda-stub" aria-label="Tagesplanung Beispielinhalt">
+              <div class="work-page-agenda-stub__date-row" aria-label="Datumsnavigation">
+                <button type="button" aria-label="Vorheriger Tag">‹</button>
+                <strong>Heute · Tagesplanung</strong>
+                <button type="button" aria-label="Nächster Tag">›</button>
+              </div>
+              <button type="button" class="work-page-agenda-stub__today">Heute</button>
+              <div class="work-page-agenda-stub__items" role="list" aria-label="Termine des Tages">
+                @for (item of dailyAgendaItems; track item.time + item.title) {
+                  <article class="work-page-agenda-stub__item" role="listitem">
+                    <time>{{ item.time }}</time>
+                    <div>
+                      <strong>{{ item.title }}</strong>
+                      <span>{{ item.detail }}</span>
+                    </div>
+                    <small>{{ item.status }}</small>
+                  </article>
+                }
+              </div>
+              <p class="work-page-list-stub__empty">Für diesen Tag sind keine Termine geplant.</p>
+            </div>
+          }
+          @case ('detail') {
+            @if (selectedCustomer(); as customer) {
+              <article
+                id="customerProfileReadMode"
+                class="customer-profile-read"
+                tabindex="-1"
+                [attr.aria-label]="selectedCustomerLabel() + ' Kundenprofil im Lesemodus'"
+              >
+                <div class="customer-profile-read__mode" role="status">
+                  <span class="pi pi-eye" aria-hidden="true"></span>
+                  Lesemodus · keine direkte Bearbeitung
+                </div>
+                <dl class="customer-profile-read__fields">
+                  <div>
+                    <dt>Vorname</dt>
+                    <dd>{{ customer.firstName }}</dd>
+                  </div>
+                  <div>
+                    <dt>Nachname</dt>
+                    <dd>{{ customer.lastName }}</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{{ customerProfileFieldValue(customer.status) }}</dd>
+                  </div>
+                  <div>
+                    <dt>E-Mail</dt>
+                    <dd>{{ customerProfileFieldValue(customer.email) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Telefon</dt>
+                    <dd>{{ customerProfileFieldValue(customer.phone) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Basisdaten</dt>
+                    <dd>{{ customerProfileFieldValue(customer.meta) }}</dd>
+                  </div>
+                </dl>
+                @if (customer.note) {
+                  <p class="customer-profile-read__note">{{ customer.note }}</p>
+                }
+                @if (canManageCustomers()) {
+                  <div class="customer-profile-read__favorite" role="group" [attr.aria-label]="selectedCustomerLabel() + ' Favoritenstatus'">
+                    <span>{{ favoriteStatusLabel(customer) }}</span>
+                    <button
+                      type="button"
+                      class="favorite-toggle"
+                      [disabled]="isFavoriteOperationBusy(customer)"
+                      [attr.aria-pressed]="isFavoriteCustomer(customer)"
+                      (click)="toggleFavoriteCustomer(customer, $event)"
+                    >
+                      <span class="pi" [class.pi-star-fill]="isFavoriteCustomer(customer)" [class.pi-star]="!isFavoriteCustomer(customer)" aria-hidden="true"></span>
+                      {{ favoriteActionLabel(customer) }}
+                    </button>
+                    @if (favoriteStatusMessage()) {
+                      <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
+                    }
+                  </div>
+                }
+                <button type="button" class="customer-profile-read__back" (click)="returnToCustomerSearch()">
+                  <span class="pi pi-arrow-left" aria-hidden="true"></span>
+                  Zurück zur Suche
+                </button>
+              </article>
+            } @else {
+              <div class="work-page-detail-stub" aria-label="Detailansicht Beispielinhalt">
+                <strong>Detail-Renderer vorbereitet</strong>
+                <p>Kerndaten, Status und Folgeaktionen werden später hier eingebettet.</p>
+              </div>
+            }
+          }
+        }
+      </app-circular-work-page>
+    }
+
+    <aside class="workspace-panel" aria-live="polite">
+      <p-card styleClass="workspace-panel__card">
+        <ng-template pTemplate="title">{{ workspacePanel().title }}</ng-template>
+        <ng-template pTemplate="subtitle">
+          <p-tag severity="info" [value]="workspacePanel().eyebrow"></p-tag>
+        </ng-template>
+
+        <p>{{ workspacePanel().description }}</p>
+
+        @if (workspacePanel().mode === 'create') {
+          <p class="workspace-panel__hint">Die Eingabe läuft jetzt in der runden Work-Page. Der Graph bleibt sichtbar, ist währenddessen aber nicht per Tab erreichbar.</p>
+        }
+
+        @if (workspacePanel().mode === 'list') {
+          <div class="workspace-list-preview">
+            <div>
+              <strong>{{ workspacePanel().title }}</strong>
+              <span>Listen-/Seitenkontext</span>
+            </div>
+            <div>
+              <strong>{{ graphNodes().length }}</strong>
+              <span>Knoten im aktuellen Graphen</span>
+            </div>
+          </div>
+        }
+
+        @if (selectedCustomer(); as customer) {
+          <div class="selected-customer">
+            <span class="pi pi-user" aria-hidden="true"></span>
+            <div>
+              <strong>{{ selectedCustomerLabel() }}</strong>
+              <span>Favoritenstatus: {{ favoriteStatusLabel(customer) }}</span>
+            </div>
+          </div>
+        }
+      </p-card>
+    </aside>
+  </div>
 
   <p-card styleClass="role-card">
     <ng-template pTemplate="title">Rollenspezifischer Bereich</ng-template>
@@ -24,7 +315,7 @@
     </ng-template>
 
     <p>Du bist als {{ roleLabel() }} eingeloggt.</p>
-    <p class="muted">Diese Seite ist der Platzhalter für die spätere rollenspezifische Startseite.</p>
+    <p class="muted">Die klassischen Rollenlinks bleiben als Fallback erhalten; der Graph ist die neue zentrale Arbeitsnavigation.</p>
 
     <nav class="role-links" aria-label="Rollenspezifische Bereiche">
       @for (link of roleLinks(); track link.route) {
@@ -38,12 +329,24 @@
     </nav>
   </p-card>
 
-  <div class="grid">
-    <p-card header="Backend Status">
-      <pre>{{ status() | json }}</pre>
+  <div class="grid status-grid" aria-label="System- und Sitzungsstatus">
+    <p-card header="Systemstatus">
+      <div class="status-summary">
+        <span class="pi pi-server" aria-hidden="true"></span>
+        <div>
+          <p-tag [severity]="backendConnectionSeverity()" [value]="backendConnectionLabel()"></p-tag>
+          <p>Der Status wird als verständliche Kurzinfo angezeigt, ohne technische Rohdaten.</p>
+        </div>
+      </div>
     </p-card>
-    <p-card header="Angemeldeter Benutzer">
-      <pre>{{ me() ?? auth.identityClaims() | json }}</pre>
+    <p-card header="Sitzung">
+      <div class="status-summary">
+        <span class="pi pi-id-card" aria-hidden="true"></span>
+        <div>
+          <p-tag severity="info" [value]="'Angemeldet als ' + roleLabel()"></p-tag>
+          <p>Die verfügbaren Bereiche richten sich nach deiner Rolle.</p>
+        </div>
+      </div>
     </p-card>
   </div>
 </section>

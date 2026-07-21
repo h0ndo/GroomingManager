@@ -1,6 +1,8 @@
 package de.groomingmanager.backend;
 
 import de.groomingmanager.backend.repository.AppointmentRepository;
+import de.groomingmanager.backend.repository.CustomerFavoriteRepository;
+import de.groomingmanager.backend.repository.CustomerRepository;
 import de.groomingmanager.backend.repository.PetRepository;
 import de.groomingmanager.backend.repository.ServiceOfferingRepository;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class GroomingManagerBackendApplicationTests {
 
   @MockitoBean private AppointmentRepository appointmentRepository;
+  @MockitoBean private CustomerFavoriteRepository customerFavoriteRepository;
+  @MockitoBean private CustomerRepository customerRepository;
   @MockitoBean private PetRepository petRepository;
   @MockitoBean private ServiceOfferingRepository serviceOfferingRepository;
 

@@ -10,19 +10,14 @@ Nach dem Start des Docker-Compose-Stacks soll Keycloak nicht manuell im Browser 
 - OIDC Client für die App,
 - Rollen:
   - `admin`,
-  - `fuehrungskraft`,
-  - `fuehrungskraft`,
-  - `angestellter`,
-  - `angestellter`,
+  - `groomer`,
   - `kunde`,
 - Gruppen:
   - `Admins`,
-  - `Führungskraft`,
-  - `Angestellte`,
-  - `Angestellte`,
+  - `Groomer`,
   - `Kund:innen`,
 - optional initialen Admin-User in der Gruppe `Admins`.
-- optional lokale Playwright-Testnutzer für Admin, Führungskraft, Angestellte:r und Kund:in.
+- optional lokale Playwright-Testnutzer für Admin, Groomer und Kund:in.
 
 ## Ablauf pro Kundeninstanz
 

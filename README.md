@@ -24,23 +24,22 @@ Technische Grundlage:
 ## Rollenmodell
 
 - **Admin**: verwaltet Standort/Kundeninstanz, Einstellungen und Nutzer:innen.
-- **Führungskraft**: sieht operative Übersichten, Team-/Kapazitätssteuerung und Eskalationen.
-- **Angestellte:r**: bearbeitet Termine, Grooming-Aufgaben und Kund:innen-/Tierkontexte.
+- **Groomer**: bearbeitet Termine, Grooming-Aufgaben und Kund:innen-/Tierkontexte.
 - **Kund:in**: nutzt optional ein Portal für eigene Tiere, Terminanfragen und Kommunikation.
 
 Technische Rollen:
 
 ```text
-admin           -> ROLE_admin
-fuehrungskraft -> ROLE_fuehrungskraft
-angestellter   -> ROLE_angestellter
-kunde          -> ROLE_kunde
+admin   -> ROLE_admin
+groomer -> ROLE_groomer
+kunde   -> ROLE_kunde
 ```
 
 ## Lokale Entwicklung
 
 ```bash
-docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml up -d
+cp deploy/.env.local.example deploy/.env.local
+docker compose --env-file deploy/.env.local -f deploy/docker-compose.local-dev.yml up -d
 ```
 
 Browser-URL:
@@ -49,19 +48,39 @@ http://localhost:3000
 
 Frontend und Backend können lokal auf dem Host laufen, während PostgreSQL, Keycloak, Flyway und der lokale Nginx-Proxy in Docker laufen.
 
+### Lokale Testkund:innen seed-en
+
+Für reproduzierbare lokale Kund:innen-Daten gibt es einen dev-only Seed außerhalb der produktiven Flyway-Migrationen:
+
+```bash
+./deploy/dev-seed/run-customer-seed.sh
+```
+
+Der Seed legt mindestens 12 lokale Kund:innen an, darunter 8 Einträge mit dem Suchmuster `Testfamilie`, und ist idempotent. Erzeugte Seed-Daten können bei Bedarf wieder entfernt werden:
+
+```bash
+./deploy/dev-seed/reset-customer-seed.sh
+```
+
+Nur die Seed-Datei statisch prüfen:
+
+```bash
+./deploy/dev-seed/check-customer-seed.sh --static
+```
+
+Schneller Stack-Check ohne Secrets auszugeben:
+
+```bash
+scripts/local-e2e-loop.sh --check-only
+```
+
 ## E2E
 
 ```bash
-docker compose \
-  --env-file deploy/.env.local.example \
-  -f deploy/docker-compose.local-dev.yml \
-  -f deploy/docker-compose.e2e.yml \
-  --profile app \
-  up -d --build
-
-cd playwright
-npm test
+scripts/local-e2e-loop.sh --terraform --playwright
 ```
+
+Der Script-Loop startet Frontend, Backend, PostgreSQL, Flyway, Keycloak und Nginx über Compose, wartet auf Healthchecks und führt optional Terraform/Playwright aus. Falls Terraform lokal nicht installiert ist, nutzt der Loop `hashicorp/terraform:1.9.8` im Docker-Container. Für ein eigenes `deploy/.env.local` muss `TF_VAR_keycloak_admin_password` vor `--terraform` in der Shell gesetzt werden; das Script liest oder druckt keine Secrets aus Env-Dateien.
 
 ## Dokumentation
 

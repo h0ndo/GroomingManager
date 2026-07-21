@@ -50,8 +50,7 @@ Das Frontend hat geschützte Platzhalter-Routen pro Hauptrolle:
 
 ```text
 /admin
-/fuehrungskraft
-/angestellter
+/groomer
 /kunde
 ```
 

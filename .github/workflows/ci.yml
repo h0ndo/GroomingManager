@@ -60,6 +60,8 @@ jobs:
           services="$(docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local-dev.yml -f deploy/docker-compose.e2e.yml --profile app config --services)"
           require_services "local-dev + e2e" "$services" local-proxy frontend backend migrate keycloak db
 
+          bash -n scripts/local-e2e-loop.sh
+
       - name: Validate required deployment files
         shell: bash
         run: |
@@ -79,6 +81,7 @@ jobs:
             backend/pom.xml
             backend/Dockerfile
             scripts/generate-sbom.sh
+            scripts/local-e2e-loop.sh
             frontend/package.json
             frontend/Dockerfile
             frontend/eslint.config.mjs

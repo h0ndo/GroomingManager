@@ -18,16 +18,10 @@ public class RoleController {
     return response("admin", authentication);
   }
 
-  @GetMapping("/fuehrungskraft/me")
-  @PreAuthorize("hasRole('fuehrungskraft')")
-  public RoleResponse fuehrungskraft(Authentication authentication) {
-    return response("fuehrungskraft", authentication);
-  }
-
-  @GetMapping("/angestellter/me")
-  @PreAuthorize("hasRole('angestellter')")
-  public RoleResponse angestellter(Authentication authentication) {
-    return response("angestellter", authentication);
+  @GetMapping("/groomer/me")
+  @PreAuthorize("hasRole('groomer')")
+  public RoleResponse groomer(Authentication authentication) {
+    return response("groomer", authentication);
   }
 
   @GetMapping("/kunde/me")

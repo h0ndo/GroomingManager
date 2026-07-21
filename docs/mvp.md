@@ -31,8 +31,7 @@ Frontend-Routen:
 
 ```text
 /admin
-/fuehrungskraft
-/angestellter
+/groomer
 /kunde
 ```
 
@@ -40,8 +39,7 @@ Backend-Endpunkte:
 
 ```text
 /api/admin/me
-/api/fuehrungskraft/me
-/api/angestellter/me
+/api/groomer/me
 /api/kunde/me
 ```
 

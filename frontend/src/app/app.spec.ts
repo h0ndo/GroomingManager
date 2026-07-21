@@ -18,11 +18,11 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the top navigation and toast outlet', () => {
+  it('should render the app shell outlets', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.brand')?.textContent).toContain('GroomingManager');
     expect(compiled.querySelector('p-toast')).toBeTruthy();
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

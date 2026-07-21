@@ -2,17 +2,23 @@ import { Injectable, inject } from '@angular/core';
 import { AuthConfig, OAuthService } from 'angular-oauth2-oidc';
 import { runtimeConfig } from './runtime-config';
 
+const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+const redirectUri = appOrigin === 'http://localhost:4200' ? 'http://localhost:4200' : appOrigin;
+
 const authConfig: AuthConfig = {
   issuer: runtimeConfig.keycloakIssuerUrl,
   clientId: runtimeConfig.oidcClientId,
   responseType: 'code',
   scope: 'openid profile email',
-  redirectUri: window.location.origin,
-  postLogoutRedirectUri: window.location.origin,
+  redirectUri,
+  postLogoutRedirectUri: redirectUri,
   requireHttps: false,
-  showDebugInformation: true,
+  showDebugInformation: false,
   useSilentRefresh: true,
 };
+
+const keycloakAuthUrl = `${runtimeConfig.keycloakIssuerUrl}/protocol/openid-connect/auth`;
+const keycloakRegistrationUrl = `${runtimeConfig.keycloakIssuerUrl}/protocol/openid-connect/registrations`;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -20,13 +26,11 @@ export class AuthService {
   private loginStarted = false;
 
   async initialise(): Promise<void> {
-    this.oauthService.configure(authConfig);
-    this.oauthService.setupAutomaticSilentRefresh();
-    await this.oauthService.loadDiscoveryDocumentAndTryLogin();
-
-    if (!this.isAuthenticated() && !this.loginStarted) {
-      this.loginStarted = true;
-      this.oauthService.initCodeFlow();
+    this.configure(authConfig);
+    try {
+      await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+    } catch {
+      console.warn('Keycloak discovery is unavailable; public pages remain accessible.');
     }
   }
 
@@ -36,6 +40,23 @@ export class AuthService {
     }
 
     this.loginStarted = true;
+    this.configure({
+      ...authConfig,
+      loginUrl: keycloakAuthUrl,
+    });
+    this.oauthService.initCodeFlow();
+  }
+
+  register(): void {
+    if (this.loginStarted) {
+      return;
+    }
+
+    this.loginStarted = true;
+    this.configure({
+      ...authConfig,
+      loginUrl: keycloakRegistrationUrl,
+    });
     this.oauthService.initCodeFlow();
   }
 
@@ -82,5 +103,10 @@ export class AuthService {
 
   identityClaims(): object | null {
     return this.oauthService.getIdentityClaims() ?? null;
+  }
+
+  private configure(config: AuthConfig): void {
+    this.oauthService.configure(config);
+    this.oauthService.setupAutomaticSilentRefresh();
   }
 }

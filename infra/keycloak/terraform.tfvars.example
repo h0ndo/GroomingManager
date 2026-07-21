@@ -10,10 +10,10 @@ realm = "grooming-manager"
 app_url = "https://grooming-manager-demo.example.de"
 
 oidc_client_id = "grooming-manager-app"
-# Keycloak-Selbstregistrierung bleibt deaktiviert; Nutzer werden durch Admins/App-Workflows angelegt.
-registration_allowed = false
+# Keycloak-Selbstregistrierung ist für Kund:innen aktiv. E-Mail wird als Benutzername genutzt und muss verifiziert werden.
+registration_allowed = true
 
-initial_admin_email = "initial-admin@example.de"
+initial_admin_email = "initial-admin@grooming-manager.local"
 initial_admin_password = "demo_admin_password"
 initial_admin_first_name = "Admin"
 initial_admin_last_name = ""
@@ -21,11 +21,9 @@ initial_admin_last_name = ""
 # Nur fuer lokale Entwicklung / Playwright E2E Tests aktivieren.
 # Nicht in produktiven Kundeninstanzen verwenden.
 test_users_enabled = false
-test_admin_email = "admin@example.de"
+test_admin_email = "admin@grooming-manager.local"
 test_admin_password = "123"
-test_fuehrungskraft_email = "fuehrungskraft@example.de"
-test_fuehrungskraft_password = "123"
-test_angestellter_email = "angestellter@example.de"
-test_angestellter_password = "123"
-test_kunde_email = "kunde@example.de"
+test_groomer_email = "groomer@grooming-manager.local"
+test_groomer_password = "123"
+test_kunde_email = "kunde@grooming-manager.local"
 test_kunde_password = "123"

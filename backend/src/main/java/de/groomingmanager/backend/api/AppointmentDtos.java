@@ -12,7 +12,20 @@ record AppointmentDto(
     String timeSlot,
     Long serviceOfferingId,
     String serviceName,
-    BigDecimal servicePrice) {}
+    BigDecimal servicePrice,
+    String status) {}
+
+record DayAppointmentDto(
+    Long id,
+    LocalDate appointmentDate,
+    String timeSlot,
+    String customerDisplayName,
+    String petName,
+    Long serviceOfferingId,
+    String serviceName,
+    String status,
+    String assignedGroomerSubject,
+    String assignedGroomerDisplayName) {}
 
 record BookAppointmentRequest(
     @NotNull LocalDate appointmentDate, @NotBlank String timeSlot, Long serviceOfferingId) {}

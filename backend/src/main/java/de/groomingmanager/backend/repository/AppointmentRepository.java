@@ -10,5 +10,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
   List<Appointment> findByOwnerSubjectOrderByCreatedAtDesc(String ownerSubject);
 
+  List<Appointment> findByAppointmentDateOrderByTimeSlotAscIdAsc(LocalDate appointmentDate);
+
   List<Appointment> findTop10ByOrderByCreatedAtDesc();
 }

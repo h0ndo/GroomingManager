@@ -1,0 +1,87 @@
+<div
+  class="circular-work-page"
+  [ngClass]="{ 'circular-work-page--closing': isClosing() }"
+  [ngStyle]="shellStyle()"
+>
+  <div class="circular-work-page__scrim" aria-hidden="true"></div>
+
+  <section
+    #dialog
+    class="circular-work-page__dialog"
+    [ngClass]="'circular-work-page__dialog--' + contentType"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="dialogLabelId"
+    [attr.aria-describedby]="dialogDescriptionId"
+    tabindex="-1"
+    (keydown)="handleDialogKeydown($event)"
+  >
+    <div class="circular-work-page__inner">
+      <header class="circular-work-page__header">
+        <p class="circular-work-page__eyebrow">{{ accessibleContext() }}</p>
+        <h2 [id]="dialogLabelId">{{ title }}</h2>
+        @if (description) {
+          <p [id]="dialogDescriptionId" class="circular-work-page__description">{{ description }}</p>
+        } @else {
+          <p [id]="dialogDescriptionId" class="circular-work-page__description">{{ accessibleContext() }}</p>
+        }
+      </header>
+
+      <div
+        class="circular-work-page__content"
+        role="region"
+        [id]="contentRegionId"
+        [attr.aria-label]="contentRegionLabel()"
+        [attr.aria-busy]="busy ? 'true' : null"
+        tabindex="0"
+      >
+        @if (busy || error || empty) {
+          <div
+            class="circular-work-page__state"
+            [attr.role]="error ? 'alert' : 'status'"
+            [attr.aria-live]="error ? 'assertive' : 'polite'"
+          >
+            @if (busy) {
+              <span class="pi pi-spin pi-spinner" aria-hidden="true"></span>
+            } @else if (error) {
+              <span class="pi pi-exclamation-triangle" aria-hidden="true"></span>
+            } @else {
+              <span class="pi pi-inbox" aria-hidden="true"></span>
+            }
+            <p>{{ contentStateMessage() }}</p>
+          </div>
+        }
+        @if (!empty && (!busy || preserveContentWhileBusy) && (!error || preserveContentWhileBusy)) {
+          <ng-content></ng-content>
+        }
+      </div>
+    </div>
+
+    <div class="circular-work-page__actions" aria-label="Work-Page-Aktionen">
+      <button
+        pButton
+        type="button"
+        class="circular-work-page__action circular-work-page__action--secondary"
+        severity="secondary"
+        [attr.aria-label]="secondaryActionLabel"
+        (click)="requestSecondaryAction()"
+      >
+        <span pButtonIcon class="pi pi-times"></span>
+        <span pButtonLabel>{{ secondaryActionLabel }}</span>
+      </button>
+      @if (primaryActionLabel) {
+        <button
+          pButton
+          type="button"
+          class="circular-work-page__action circular-work-page__action--primary"
+          [attr.aria-label]="primaryActionLabel"
+          [disabled]="busy"
+          (click)="requestPrimaryAction()"
+        >
+          <span pButtonIcon class="pi pi-check"></span>
+          <span pButtonLabel>{{ primaryActionLabel }}</span>
+        </button>
+      }
+    </div>
+  </section>
+</div>

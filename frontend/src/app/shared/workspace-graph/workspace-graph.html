@@ -1,0 +1,196 @@
+<section class="workspace-graph" role="region" aria-label="Arbeitsgraph: Navigation, Beziehungen und Aktionen">
+  <header class="workspace-graph__toolbar">
+    <div>
+      <p class="workspace-graph__eyebrow">Arbeitsgraph</p>
+      <h2>Navigation, Beziehungen und Aktionen</h2>
+    </div>
+    <div class="workspace-graph__controls" aria-label="Zoom und Layout">
+      <button type="button" class="workspace-graph__control" (click)="zoomOut()" aria-label="Rauszoomen">−</button>
+      <span class="workspace-graph__zoom">{{ zoomPercent() }}%</span>
+      <button type="button" class="workspace-graph__control" (click)="zoomIn()" aria-label="Reinzoomen">+</button>
+      @if (showFitToViewControl) {
+        <button type="button" class="workspace-graph__reset" (click)="fitToView()">Alles einpassen</button>
+      }
+      <button type="button" class="workspace-graph__reset" (click)="resetLayout()">Layout zurücksetzen</button>
+      <button
+        type="button"
+        class="workspace-graph__reset"
+        [attr.aria-expanded]="showLinearView()"
+        aria-controls="workspace-graph-linear-view"
+        (click)="toggleLinearView()"
+      >
+        {{ showLinearView() ? 'Graphliste ausblenden' : 'Als Liste anzeigen' }}
+      </button>
+    </div>
+  </header>
+
+  <div
+    #viewport
+    class="workspace-graph__viewport"
+    [class.workspace-graph__viewport--panning]="isPanning()"
+    [class.workspace-graph__viewport--dragging-node]="isDraggingNode()"
+    [class.workspace-graph__viewport--pannable]="isFitPannable()"
+    aria-describedby="workspace-graph-help workspace-graph-fit-status"
+    (pointerdown)="beginPan($event)"
+    (pointermove)="movePan($event)"
+    (pointerup)="endPan($event)"
+    (pointercancel)="endPan($event)"
+    (wheel)="handleWheel($event)"
+  >
+    <div class="workspace-graph__canvas" [style.width.px]="width" [style.height.px]="height" [style.transform]="translatedCanvas()">
+      <div class="workspace-graph__edges" aria-hidden="true">
+        @for (edge of edges; track edge.from + '-' + edge.to) {
+          @if (edgeLine(edge); as line) {
+            <div
+              class="workspace-graph__edge"
+              [ngClass]="edgeClass(edge)"
+              [style.left.px]="edgeBox(line).left"
+              [style.top.px]="edgeBox(line).top"
+              [style.width.px]="edgeBox(line).width"
+              [style.height.px]="edgeBox(line).height"
+            >
+              <svg class="workspace-graph__edge-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <line
+                  class="workspace-graph__edge-stroke"
+                  pathLength="1"
+                  [attr.x1]="edgeBoxLine(line).x1"
+                  [attr.y1]="edgeBoxLine(line).y1"
+                  [attr.x2]="edgeBoxLine(line).x2"
+                  [attr.y2]="edgeBoxLine(line).y2"
+                />
+              </svg>
+            </div>
+          }
+        }
+      </div>
+
+      @for (node of nodes; track node.id) {
+        <button
+          type="button"
+          class="workspace-graph__node"
+          [ngClass]="nodeClass(node)"
+          [style.left.px]="nodePosition(node).x"
+          [style.top.px]="nodePosition(node).y"
+          [style.--spawn-x]="nodeSpawnOffset(node).x + 'px'"
+          [style.--spawn-y]="nodeSpawnOffset(node).y + 'px'"
+          [attr.data-node-id]="node.id"
+          [attr.aria-label]="nodeAccessibleLabel(node)"
+          [attr.aria-current]="node.id === activeNodeId ? 'true' : null"
+          (pointerdown)="beginNodeDrag($event, node)"
+          (click)="activateNode(node, $event)"
+        >
+          @if (node.avatarUrl) {
+            <img class="workspace-graph__avatar" [src]="node.avatarUrl" alt="" aria-hidden="true" />
+          } @else {
+            <span class="workspace-graph__icon pi" [class]="'workspace-graph__icon pi ' + (node.icon ?? 'pi-circle')" aria-hidden="true"></span>
+          }
+          <span class="workspace-graph__label">
+            @if (node.labelLines?.length) {
+              @for (labelLine of node.labelLines; track labelLine; let last = $last) {
+                <span class="workspace-graph__label-line">{{ labelLine }}</span>{{ last ? '' : ' ' }}
+              }
+            } @else {
+              {{ node.label }}
+            }
+          </span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <p id="workspace-graph-help" class="workspace-graph__hint">Enter oder Space aktiviert den fokussierten Knoten. Tab erreicht jeden sichtbaren Knoten und die lineare Liste. Kreise ziehen verschiebt in Custom Flex nur Top-Level-Knoten; freie Fläche ziehen verschiebt den ganzen Graphen. Plus/Minus oder Strg+Mausrad zoomt rein/raus. Escape setzt die Ansicht zurück.</p>
+
+  <p
+    id="workspace-graph-fit-status"
+    class="workspace-graph__fit-status"
+    [class.workspace-graph__fit-status--visible]="fitStatusMessage()"
+    aria-live="polite"
+  >
+    {{ fitStatusMessage() }}
+  </p>
+
+  @if (showLinearView()) {
+    <section id="workspace-graph-linear-view" class="workspace-graph__linear" aria-label="Arbeitsgraph als Liste">
+      <h3>Arbeitsgraph als Liste</h3>
+      <ol class="workspace-graph__linear-list workspace-graph__linear-list--root">
+        @if (linearGraphRoot(); as rootEntry) {
+          <li>
+            <button
+              type="button"
+              class="workspace-graph__linear-node workspace-graph__linear-node--root"
+              [class.workspace-graph__linear-node--active]="rootEntry.node.id === activeNodeId"
+              [attr.aria-current]="rootEntry.node.id === activeNodeId ? 'true' : null"
+              (click)="activateNode(rootEntry.node, $event)"
+            >
+              <span class="workspace-graph__linear-title">{{ rootEntry.node.label }}</span>
+              <span class="workspace-graph__linear-meta">{{ nodeKindLabel(rootEntry.node) }} · {{ nodeStatusLabel(rootEntry.node) }}</span>
+              <span class="workspace-graph__linear-description">{{ nodeRelationshipLabel(rootEntry.node) }}</span>
+            </button>
+          </li>
+        }
+      </ol>
+
+      @for (group of linearGraphGroups(); track group.domain.node.id) {
+        <section class="workspace-graph__linear-group" [attr.aria-labelledby]="'workspace-graph-linear-heading-' + group.domain.node.id">
+          <h4 [id]="'workspace-graph-linear-heading-' + group.domain.node.id">{{ linearGroupLabel(group) }}</h4>
+          <button
+            type="button"
+            class="workspace-graph__linear-node workspace-graph__linear-node--domain"
+            [class.workspace-graph__linear-node--active]="group.domain.node.id === activeNodeId"
+            [attr.aria-current]="group.domain.node.id === activeNodeId ? 'true' : null"
+            [attr.aria-expanded]="group.children.length > 0 ? 'true' : null"
+            [attr.aria-controls]="group.children.length > 0 ? childListId(group.domain.node) : null"
+            (click)="activateNode(group.domain.node, $event)"
+          >
+            <span class="workspace-graph__linear-title">{{ group.domain.node.label }}</span>
+            <span class="workspace-graph__linear-meta">{{ nodeKindLabel(group.domain.node) }} · {{ nodeStatusLabel(group.domain.node) }}</span>
+            <span class="workspace-graph__linear-description">{{ nodeRelationshipLabel(group.domain.node) }}</span>
+          </button>
+
+          @if (group.children.length > 0) {
+            <ol [id]="childListId(group.domain.node)" class="workspace-graph__linear-list workspace-graph__linear-list--children">
+              @for (entry of group.children; track entry.node.id) {
+                <li [style.--graph-depth]="linearChildDepth(entry)">
+                  <button
+                    type="button"
+                    class="workspace-graph__linear-node"
+                    [class.workspace-graph__linear-node--active]="entry.node.id === activeNodeId"
+                    [attr.aria-current]="entry.node.id === activeNodeId ? 'true' : null"
+                    (click)="activateNode(entry.node, $event)"
+                  >
+                    <span class="workspace-graph__linear-title">{{ entry.node.label }}</span>
+                    <span class="workspace-graph__linear-meta">{{ nodeKindLabel(entry.node) }} · {{ nodeStatusLabel(entry.node) }}</span>
+                    <span class="workspace-graph__linear-description">{{ nodeRelationshipLabel(entry.node) }}</span>
+                  </button>
+                </li>
+              }
+            </ol>
+          }
+        </section>
+      }
+
+      @if (linearGraphOrphans().length > 0) {
+        <section class="workspace-graph__linear-group" aria-label="Weitere sichtbare Knoten">
+          <h4>Weitere sichtbare Knoten</h4>
+          <ol class="workspace-graph__linear-list">
+            @for (entry of linearGraphOrphans(); track entry.node.id) {
+              <li>
+                <button
+                  type="button"
+                  class="workspace-graph__linear-node"
+                  [class.workspace-graph__linear-node--active]="entry.node.id === activeNodeId"
+                  [attr.aria-current]="entry.node.id === activeNodeId ? 'true' : null"
+                  (click)="activateNode(entry.node, $event)"
+                >
+                  <span class="workspace-graph__linear-title">{{ entry.node.label }}</span>
+                  <span class="workspace-graph__linear-meta">{{ nodeKindLabel(entry.node) }} · {{ nodeStatusLabel(entry.node) }}</span>
+                  <span class="workspace-graph__linear-description">{{ nodeRelationshipLabel(entry.node) }}</span>
+                </button>
+              </li>
+            }
+          </ol>
+        </section>
+      }
+    </section>
+  }
+</section>

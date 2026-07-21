@@ -13,3 +13,21 @@ code,
 pre {
   font-family: "JetBrains Mono", "Cascadia Code", monospace;
 }
+
+.stat-card,
+.cta-card {
+  border: 1px solid rgb(248 245 239 / 13%);
+  border-radius: 1.5rem;
+  background: rgb(255 255 255 / 8%);
+  color: #f8f5ef;
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+.cta-card .p-card-body {
+  padding: clamp(2rem, 6vw, 4rem);
+}
+
+.p-button {
+  border-radius: 999px;
+}

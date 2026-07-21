@@ -40,9 +40,9 @@ variable "oidc_client_secret" {
 }
 
 variable "registration_allowed" {
-  description = "Deprecated: Keycloak self-registration is intentionally disabled. Users are created by admins or application workflows."
+  description = "Allow public Keycloak self-registration for customer accounts. Registered users must verify their email address before using the app."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "initial_admin_email" {
@@ -79,7 +79,7 @@ variable "test_users_enabled" {
 variable "test_admin_email" {
   description = "Email/username for the local Playwright admin test user."
   type        = string
-  default     = "admin@example.de"
+  default     = "admin@grooming-manager.local"
 }
 
 variable "test_admin_password" {
@@ -89,27 +89,14 @@ variable "test_admin_password" {
   sensitive   = true
 }
 
-variable "test_fuehrungskraft_email" {
-  description = "Email/username for the local Playwright leadership test user."
+variable "test_groomer_email" {
+  description = "Email/username for the local Playwright groomer test user."
   type        = string
-  default     = "fuehrungskraft@example.de"
+  default     = "groomer@grooming-manager.local"
 }
 
-variable "test_fuehrungskraft_password" {
-  description = "Password for the local Playwright leadership test user. Use only in local/dev/test environments."
-  type        = string
-  default     = "123"
-  sensitive   = true
-}
-
-variable "test_angestellter_email" {
-  description = "Email/username for the local Playwright employee test user."
-  type        = string
-  default     = "angestellter@example.de"
-}
-
-variable "test_angestellter_password" {
-  description = "Password for the local Playwright employee test user. Use only in local/dev/test environments."
+variable "test_groomer_password" {
+  description = "Password for the local Playwright groomer test user. Use only in local/dev/test environments."
   type        = string
   default     = "123"
   sensitive   = true
@@ -118,7 +105,7 @@ variable "test_angestellter_password" {
 variable "test_kunde_email" {
   description = "Email/username for the local Playwright kunde test user."
   type        = string
-  default     = "kunde@example.de"
+  default     = "kunde@grooming-manager.local"
 }
 
 variable "test_kunde_password" {

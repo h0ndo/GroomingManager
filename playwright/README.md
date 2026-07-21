@@ -7,10 +7,9 @@ Dieses Verzeichnis enthält End-to-End-Tests für GroomingManager.
 Die ersten Tests prüfen den Login über Keycloak für die fachlichen Rollen:
 
 ```text
-Admin:          admin@example.de          / 123
-Führungskraft:  fuehrungskraft@example.de / 123
-Angestellter:      angestellter@example.de      / 123
-Customer:        kunde@example.de        / 123
+Admin:         admin@grooming-manager.local   / 123
+Groomer:        groomer@grooming-manager.local / 123
+Kund:in:        kunde@grooming-manager.local   / 123
 ```
 
 Die Nutzer werden über Terraform in `infra/keycloak` als lokale Testnutzer angelegt, wenn `test_users_enabled = true` gesetzt ist.
@@ -63,11 +62,21 @@ PLAYWRIGHT_BASE_URL=http://localhost:3000 npm test
 Für Playwright und reproduzierbare lokale Tests sollen Frontend und Backend ebenfalls in Docker laufen. Dafür gibt es ein Overlay:
 
 ```bash
-docker compose --env-file deploy/.env.local \
-  -f deploy/docker-compose.local-dev.yml \
-  -f deploy/docker-compose.e2e.yml \
-  --profile app \
-  up -d --build
+scripts/local-e2e-loop.sh --terraform --playwright
+```
+
+Der Loop verwendet `deploy/.env.local`, falls vorhanden, sonst `deploy/.env.local.example`. Er validiert die Compose-Service-Liste, startet den E2E-Stack, wartet auf Keycloak, Backend-Readiness, `/api/status` und die Frontend-/Proxy-Startseite. Mit `--terraform` werden Realm, Client, Rollen und lokale Testnutzer angelegt; wenn Terraform lokal fehlt, wird `hashicorp/terraform:1.9.8` im Docker-Container genutzt. Bei einem eigenen `deploy/.env.local` muss `TF_VAR_keycloak_admin_password` bereits in der Shell gesetzt sein, weil das Script keine Secrets aus Env-Dateien liest oder ausgibt.
+
+Nur prüfen, ohne zu starten:
+
+```bash
+scripts/local-e2e-loop.sh --check-only
+```
+
+Stack nach dem Lauf wieder entfernen:
+
+```bash
+scripts/local-e2e-loop.sh --terraform --playwright --stop-after
 ```
 
 Wichtig: In diesem Modus zeigt der lokale Proxy nicht auf manuell gestartete Container-Namen, sondern auf Compose-Service-Namen:

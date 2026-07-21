@@ -8,8 +8,10 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -29,6 +31,19 @@ public class ApiErrorHandler {
     problem.setTitle("Validation failed");
     problem.setDetail("The request contains invalid fields.");
     problem.setProperty("errors", fieldErrors(exception));
+
+    return ResponseEntity.badRequest().body(problem);
+  }
+
+  @ExceptionHandler({
+    MissingServletRequestParameterException.class,
+    MethodArgumentTypeMismatchException.class
+  })
+  ResponseEntity<ProblemDetail> handleRequestParameterError(Exception exception) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    problem.setType(VALIDATION_ERROR_TYPE);
+    problem.setTitle("Validation failed");
+    problem.setDetail("The request contains invalid parameters.");
 
     return ResponseEntity.badRequest().body(problem);
   }

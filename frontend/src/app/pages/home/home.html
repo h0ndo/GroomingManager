@@ -1,21 +1,95 @@
-<section class="hero">
-  <p-card styleClass="hero-card">
-    <ng-template pTemplate="header">
-      <div class="hero-card__header">
-        <span class="pi pi-heart-pulse" aria-hidden="true"></span>
+<main class="public-page">
+  <section class="hero-shell">
+    <div class="ambient ambient--sage" aria-hidden="true"></div>
+    <div class="ambient ambient--gold" aria-hidden="true"></div>
+    <img class="scissors scissors--left-top" src="/scissors-1.png" alt="" aria-hidden="true" />
+    <img class="scissors scissors--left-bottom" src="/scissors-2.png" alt="" aria-hidden="true" />
+    <img class="scissors scissors--right-top" src="/scissors-3.png" alt="" aria-hidden="true" />
+    <img class="scissors scissors--right-bottom" src="/scissors-4.png" alt="" aria-hidden="true" />
+
+    <div class="hero-content">
+      <div class="hero-logo landing-reveal" pAnimateOnScroll enterClass="reveal-in" leaveClass="reveal-out">
+        <img src="/s2.png" alt="Schnittstelle 2 Hundesalon Logo" />
       </div>
-    </ng-template>
 
-    <p class="eyebrow">GroomingManager</p>
-    <h1>Willkommen im geschützten Arbeitsbereich.</h1>
-    <p>
-      Du bist über Keycloak angemeldet. Das Frontend nutzt dein Access Token für geschützte
-      Backend-Endpunkte über <code>/api</code>.
-    </p>
+      <div
+        class="hero-copy landing-reveal landing-reveal--essential"
+        pAnimateOnScroll
+        enterClass="reveal-in reveal-delay"
+        leaveClass="reveal-out"
+        data-testid="home-hero-copy"
+      >
+        <h1>Grooming, das schon beim ersten Klick nach Salon aussieht.</h1>
+        <p class="lead">
+          Eine elegante öffentliche Seite für Hundesalon, Pflegeleistungen und Terminstart —
+          ruhig, hochwertig und nah am Branding des Salons.
+        </p>
 
-    <a pButton routerLink="/dashboard" class="dashboard-link">
-      <span pButtonIcon class="pi pi-arrow-right"></span>
-      <span pButtonLabel>Zum Dashboard</span>
-    </a>
-  </p-card>
-</section>
+        <div class="actions" aria-label="Anmeldung und Registrierung">
+          <button pButton type="button" size="large" (click)="login()">
+            <span pButtonIcon class="pi pi-sign-in"></span>
+            <span pButtonLabel>Einloggen</span>
+          </button>
+          <button pButton type="button" size="large" severity="secondary" outlined="true" (click)="register()">
+            <span pButtonIcon class="pi pi-user-plus"></span>
+            <span pButtonLabel>Registrieren</span>
+          </button>
+        </div>
+
+        <p class="microcopy">
+          Registrierung per E-Mail über Keycloak — inklusive verpflichtender E-Mail-Verifizierung.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--stats" aria-label="Highlights">
+    @for (highlight of highlights; track highlight.label) {
+      <p-card
+        class="landing-reveal landing-reveal--stat"
+        styleClass="stat-card landing-reveal-card"
+        pAnimateOnScroll
+        enterClass="reveal-in"
+        leaveClass="reveal-out"
+        data-testid="home-highlight-card"
+      >
+        <span class="stat-card__value">{{ highlight.value }}</span>
+        <span class="stat-card__label">{{ highlight.label }}</span>
+      </p-card>
+    }
+  </section>
+
+  <section class="section story-section">
+    <div class="story-copy landing-reveal" pAnimateOnScroll enterClass="reveal-in" leaveClass="reveal-out">
+      <p class="eyebrow">Salon-Feeling vor Software-Feeling</p>
+      <h2>Erst Vertrauen schaffen, dann Technik zeigen.</h2>
+      <p>
+        Die öffentliche Seite ist bewusst kein Admin-UI. Sie soll Besucher:innen abholen: mit
+        Salon-Branding, klaren Leistungen und einem einfachen Weg zu Login oder Registrierung.
+      </p>
+    </div>
+
+    <div class="service-cloud landing-reveal" pAnimateOnScroll enterClass="reveal-in reveal-delay" leaveClass="reveal-out">
+      @for (service of services; track service) {
+        <span>{{ service }}</span>
+      }
+    </div>
+  </section>
+
+  <section class="section cta-section landing-reveal" pAnimateOnScroll enterClass="reveal-in" leaveClass="reveal-out">
+    <p-card styleClass="cta-card">
+      <p class="eyebrow">Bereit für die erste Buchung?</p>
+      <h2>Registrieren, E-Mail bestätigen und den Hundesalon digital erleben.</h2>
+      <div class="actions actions--center">
+        <button pButton type="button" size="large" (click)="register()">
+          <span pButtonIcon class="pi pi-user-plus"></span>
+          <span pButtonLabel>Jetzt registrieren</span>
+        </button>
+        <button pButton type="button" size="large" severity="secondary" text="true" (click)="login()">
+          <span pButtonIcon class="pi pi-sign-in"></span>
+          <span pButtonLabel>Ich habe schon ein Konto</span>
+        </button>
+      </div>
+    </p-card>
+  </section>
+</main>
