@@ -820,6 +820,65 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
   }));
 
+  it('closes stale favorite subtrees when the customer add work page opens', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Katja Gross').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Hinzufügen', 'Favoriten', 'Katja Gross', 'Profil']),
+    );
+
+    graphNodeButton(fixture, 'Hinzufügen').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as {
+      expandedNodeIds: () => ReadonlySet<string>;
+    };
+    const host = fixture.nativeElement as HTMLElement;
+    const dialog = host.querySelector('[role="dialog"]');
+
+    expect(dialog?.textContent).toContain('Kunden hinzufügen');
+    expect(component.expandedNodeIds().has('customers')).toBeTrue();
+    expect(component.expandedNodeIds().has('customer-favorites')).toBeFalse();
+    expect(component.expandedNodeIds().has('7')).toBeFalse();
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect(host.querySelector('[data-node-id="7-profile"]')).toBeNull();
+
+    buttonByText(fixture, 'Abbrechen').click();
+    tick(230);
+    fixture.detectChanges();
+    tick(50);
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeLabels(fixture)).toContain('Favoriten');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+  }));
+
   it('keeps an empty favorites node operable without opening an empty favorites dialog', fakeAsync(() => {
     fixture.detectChanges();
     httpTesting

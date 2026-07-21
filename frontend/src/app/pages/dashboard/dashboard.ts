@@ -881,6 +881,10 @@ export class Dashboard implements OnInit {
   }
 
   private activeNodeAncestorIds(): string[] {
+    return this.dashboardGraphAncestorIdsForNode(this.activeNodeId());
+  }
+
+  private dashboardGraphAncestorIdsForNode(nodeId: string): string[] {
     const expandedNodeIds = new Set(
       expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
     );
@@ -890,7 +894,7 @@ export class Dashboard implements OnInit {
       this.graphRole(),
     );
     const ancestors: string[] = [];
-    let currentNodeId = this.activeNodeId();
+    let currentNodeId = nodeId;
 
     for (let i = 0; i < edges.length; i += 1) {
       const parentNodeId = edges.find((edge) => edge.to === currentNodeId)?.from;
@@ -904,6 +908,20 @@ export class Dashboard implements OnInit {
     }
 
     return ancestors;
+  }
+
+  private pruneExpandedNodeIdsForWorkPage(sourceNodeId: string): void {
+    const relevantContextNodeIds = new Set(
+      this.dashboardGraphAncestorIdsForNode(sourceNodeId).filter((nodeId) => nodeId !== 'start'),
+    );
+
+    if (hasDashboardGraphChildren(sourceNodeId, this.favoriteCustomers(), this.graphRole())) {
+      relevantContextNodeIds.add(sourceNodeId);
+    }
+
+    this.expandedNodeIds.update(
+      (current) => new Set(Array.from(current).filter((nodeId) => relevantContextNodeIds.has(nodeId))),
+    );
   }
 
   private preferredUsername(): string {
@@ -1283,6 +1301,7 @@ export class Dashboard implements OnInit {
     node: WorkspaceGraphNode,
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1313,6 +1332,7 @@ export class Dashboard implements OnInit {
       this.customerSearchError.set('');
       this.customerSearchBusy.set(false);
     }
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1334,6 +1354,7 @@ export class Dashboard implements OnInit {
     sourceOrigin: CircularWorkPageOrigin | undefined,
     secondaryActionLabel: string,
   ): void {
+    this.pruneExpandedNodeIdsForWorkPage(sourceNode.id);
     this.focusNodeAfterWorkPageClose = customer.id;
     this.activeWorkPage.set({
       sourceNodeId: sourceNode.id,
@@ -1353,6 +1374,7 @@ export class Dashboard implements OnInit {
     sourceNode: WorkspaceGraphNode,
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
+    this.pruneExpandedNodeIdsForWorkPage(sourceNode.id);
     this.customerDeleteBusy.set(false);
     this.customerDeleteError.set('');
     this.focusNodeAfterWorkPageClose = sourceNode.id;
@@ -1399,6 +1421,7 @@ export class Dashboard implements OnInit {
     node: WorkspaceGraphNode,
     sourceOrigin: CircularWorkPageOrigin | undefined,
   ): void {
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
