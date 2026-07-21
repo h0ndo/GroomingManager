@@ -21,7 +21,9 @@ class AuthServiceStub {
   roles = jasmine.createSpy('roles').and.callFake(() => this.roleList);
   hasRole = jasmine
     .createSpy('hasRole')
-    .and.callFake((role: string) => this.roleList.includes(role.startsWith('ROLE_') ? role : `ROLE_${role}`));
+    .and.callFake((role: string) =>
+      this.roleList.includes(role.startsWith('ROLE_') ? role : `ROLE_${role}`),
+    );
   login = jasmine.createSpy('login');
   logout = jasmine.createSpy('logout');
 
@@ -35,7 +37,9 @@ function normalizeText(value: string | null | undefined): string {
 }
 
 function graphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): HTMLButtonElement {
-  const buttons = Array.from(fixture.nativeElement.querySelectorAll('.workspace-graph__node')) as HTMLButtonElement[];
+  const buttons = Array.from(
+    fixture.nativeElement.querySelectorAll('.workspace-graph__node'),
+  ) as HTMLButtonElement[];
   const button = buttons.find((candidate) => normalizeText(candidate.textContent) === label);
 
   if (!button) {
@@ -46,7 +50,9 @@ function graphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): H
 }
 
 function buttonByText(fixture: ComponentFixture<Dashboard>, label: string): HTMLButtonElement {
-  const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+  const buttons = Array.from(
+    fixture.nativeElement.querySelectorAll('button'),
+  ) as HTMLButtonElement[];
   const button = buttons.find((candidate) => candidate.textContent?.includes(label));
 
   if (!button) {
@@ -71,14 +77,16 @@ function closeActiveWorkPage(fixture: ComponentFixture<Dashboard>): void {
 }
 
 function graphNodeLabels(fixture: ComponentFixture<Dashboard>): string[] {
-  return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.workspace-graph__node')).map(
-    (node) => normalizeText(node.textContent),
-  );
+  return Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll('.workspace-graph__node'),
+  ).map((node) => normalizeText(node.textContent));
 }
 
 function customerSearchResultButtons(fixture: ComponentFixture<Dashboard>): HTMLButtonElement[] {
   return Array.from(
-    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.work-page-search__profile'),
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      '.work-page-search__profile',
+    ),
   );
 }
 
@@ -106,8 +114,11 @@ function openCustomerSearchFromGraph(fixture: ComponentFixture<Dashboard>): void
   fixture.detectChanges();
 }
 
-
-function customerDto(id: number, displayName: string, overrides: Record<string, string | null> = {}): Record<string, string | number | null> {
+function customerDto(
+  id: number,
+  displayName: string,
+  overrides: Record<string, string | null> = {},
+): Record<string, string | number | null> {
   return {
     id,
     keycloakSubject: null,
@@ -132,7 +143,9 @@ const testfamilieCustomers = [
 ];
 
 function setCustomerSearchTerm(fixture: ComponentFixture<Dashboard>, term: string): void {
-  const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerSearch');
+  const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+    '#workPageCustomerSearch',
+  );
 
   searchInput!.value = term;
   searchInput!.dispatchEvent(new Event('input'));
@@ -145,11 +158,15 @@ describe('Dashboard', () => {
   let httpTesting: HttpTestingController;
 
   function flushCustomerFavoritesIfRequested(): void {
-    httpTesting.match(`${runtimeConfig.apiBaseUrl}/customer-favorites`).forEach((request) => request.flush([]));
+    httpTesting
+      .match(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .forEach((request) => request.flush([]));
   }
 
-
-  function flushCustomerSearch(term: string, customers: Array<Record<string, string | number | null>>): void {
+  function flushCustomerSearch(
+    term: string,
+    customers: Array<Record<string, string | number | null>>,
+  ): void {
     const request = httpTesting.expectOne(
       (candidate) =>
         candidate.url === `${runtimeConfig.apiBaseUrl}/customers` &&
@@ -184,7 +201,10 @@ describe('Dashboard', () => {
       .match(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
       .forEach((request) => request.flush([]));
     httpTesting
-      .match((request) => request.url === `${runtimeConfig.apiBaseUrl}/customers` && request.method === 'GET')
+      .match(
+        (request) =>
+          request.url === `${runtimeConfig.apiBaseUrl}/customers` && request.method === 'GET',
+      )
       .forEach((request) => request.flush([]));
     httpTesting.verify();
   });
@@ -193,7 +213,9 @@ describe('Dashboard', () => {
     auth.setRoles(['ROLE_admin', 'ROLE_groomer']);
 
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin', 'ROLE_groomer'],
@@ -213,7 +235,9 @@ describe('Dashboard', () => {
 
   it('toggles the focused-work Kunden structure node without opening a work page', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -227,7 +251,9 @@ describe('Dashboard', () => {
     expect(customersButton).not.toBeNull();
     expect(customersButton!.getAttribute('aria-expanded')).toBe('false');
 
-    customersButton!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }));
+    customersButton!.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }),
+    );
     customersButton!.click();
     fixture.detectChanges();
     tick();
@@ -237,7 +263,9 @@ describe('Dashboard', () => {
     expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-expanded')).toBe('true');
     expect(graphNodeButton(fixture, 'Kunden').getAttribute('aria-label')).toContain('aufgeklappt');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Kunden ist aufgeklappt');
-    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Kunden', 'Suchen', 'Hinzufügen', 'Favoriten']));
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Kunden', 'Suchen', 'Hinzufügen', 'Favoriten']),
+    );
 
     graphNodeButton(fixture, 'Kunden').click();
     fixture.detectChanges();
@@ -250,7 +278,9 @@ describe('Dashboard', () => {
 
   it('opens the round customer search from the functional search node and focuses the search field', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -263,7 +293,9 @@ describe('Dashboard', () => {
     tick();
 
     const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
-    const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerSearch');
+    const searchInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#workPageCustomerSearch',
+    );
 
     expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Suchen');
     expect(dialog?.textContent).toContain('Kundensuche');
@@ -273,7 +305,9 @@ describe('Dashboard', () => {
 
   it('loads customer search results from the backend with one extra row for overflow detection', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -321,7 +355,9 @@ describe('Dashboard', () => {
 
   it('shows customer search load errors in the round work page and recovers on the next backend response', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -331,9 +367,11 @@ describe('Dashboard', () => {
 
     openCustomerSearchFromGraph(fixture);
 
-    (fixture.componentInstance as unknown as { updateCustomerSearchTerm: (searchTerm: string) => void }).updateCustomerSearchTerm(
-      'muster',
-    );
+    (
+      fixture.componentInstance as unknown as {
+        updateCustomerSearchTerm: (searchTerm: string) => void;
+      }
+    ).updateCustomerSearchTerm('muster');
     httpTesting
       .expectOne(
         (candidate) =>
@@ -341,27 +379,38 @@ describe('Dashboard', () => {
           candidate.params.get('query') === 'muster' &&
           candidate.params.get('limit') === '7',
       )
-      .flush({ detail: 'Database unavailable' }, { status: 503, statusText: 'Service Unavailable' });
+      .flush(
+        { detail: 'Database unavailable' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
     fixture.detectChanges();
 
     const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
 
-    expect(dialog?.textContent).toContain('Kunden konnten nicht geladen werden. Bitte versuche es erneut.');
+    expect(dialog?.textContent).toContain(
+      'Kunden konnten nicht geladen werden. Bitte versuche es erneut.',
+    );
     expect(dialog?.querySelector('[role="alert"]')).not.toBeNull();
 
-    (fixture.componentInstance as unknown as { updateCustomerSearchTerm: (searchTerm: string) => void }).updateCustomerSearchTerm(
-      'katja',
-    );
+    (
+      fixture.componentInstance as unknown as {
+        updateCustomerSearchTerm: (searchTerm: string) => void;
+      }
+    ).updateCustomerSearchTerm('katja');
     flushCustomerSearch('katja', [customerDto(7, 'Katja Gross')]);
 
     expect(dialog?.textContent).toContain('Katja Gross');
-    expect(dialog?.textContent).not.toContain('Kunden konnten nicht geladen werden. Bitte versuche es erneut.');
+    expect(dialog?.textContent).not.toContain(
+      'Kunden konnten nicht geladen werden. Bitte versuche es erneut.',
+    );
     expect(dialog?.querySelector('[role="alert"]')).toBeNull();
   }));
 
   it('opens a selected customer search result as a read-only profile with a route back to search', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -414,13 +463,17 @@ describe('Dashboard', () => {
     fixture.detectChanges();
 
     expect(host.querySelector<HTMLInputElement>('#workPageCustomerSearch')?.value).toBe('muster');
-    expect(document.activeElement).toBe(host.querySelector<HTMLInputElement>('#workPageCustomerSearch'));
+    expect(document.activeElement).toBe(
+      host.querySelector<HTMLInputElement>('#workPageCustomerSearch'),
+    );
     expect(host.textContent).toContain('Mila Muster');
   }));
 
   it('opens a customer search result with Enter using the button screenreader name', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -435,7 +488,9 @@ describe('Dashboard', () => {
     ]);
 
     const result = customerSearchResultButtons(fixture)[0];
-    expect(result.getAttribute('aria-label')).toBe('Katja Gross, Kund:in, Kundenprofil im Lesemodus öffnen');
+    expect(result.getAttribute('aria-label')).toBe(
+      'Katja Gross, Kund:in, Kundenprofil im Lesemodus öffnen',
+    );
 
     result.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     fixture.detectChanges();
@@ -443,13 +498,19 @@ describe('Dashboard', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Katja Gross Profil');
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('katja.gross@example.local');
-    expect(document.activeElement).toBe((fixture.nativeElement as HTMLElement).querySelector('#customerProfileReadMode'));
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'katja.gross@example.local',
+    );
+    expect(document.activeElement).toBe(
+      (fixture.nativeElement as HTMLElement).querySelector('#customerProfileReadMode'),
+    );
   }));
 
   it('shows at most six round customer search result nodes and asks to refine larger result sets', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -470,7 +531,9 @@ describe('Dashboard', () => {
 
     expect(resultButtons).toHaveSize(6);
     expect(
-      resultButtons.every((button) => button.closest('.work-page-search__item--avatar-node') !== null),
+      resultButtons.every(
+        (button) => button.closest('.work-page-search__item--avatar-node') !== null,
+      ),
     ).toBeTrue();
     expect(resultButtons[0].textContent).toContain('Lena Testfamilie');
     expect(resultButtons[5].textContent).toContain('Nora Testfamilie');
@@ -492,7 +555,9 @@ describe('Dashboard', () => {
 
   it('opens the reusable circular work page from the customer add node and closes it with cancel', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -510,7 +575,11 @@ describe('Dashboard', () => {
     expect(dialog?.textContent).toContain('Speichern');
     expect(dialog?.textContent).toContain('Abbrechen');
     expect(dialog?.getAttribute('aria-modal')).toBe('true');
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-workspace-graph')?.getAttribute('inert')).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('app-workspace-graph')
+        ?.getAttribute('inert'),
+    ).toBe('');
 
     buttonByText(fixture, 'Abbrechen').click();
     tick(230);
@@ -519,15 +588,23 @@ describe('Dashboard', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-workspace-graph')?.hasAttribute('inert')).toBeFalse();
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('app-workspace-graph')
+        ?.hasAttribute('inert'),
+    ).toBeFalse();
     expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hinzufügen');
     expect(document.activeElement).toBe(activeGraphNodeButton(fixture));
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Mila Muster angeheftet');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
+      'Mila Muster angeheftet',
+    );
   }));
 
   it('creates a customer through the circular work page primary action using the customers API response id', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -539,7 +616,9 @@ describe('Dashboard', () => {
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
-    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerName');
+    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#workPageCustomerName',
+    );
     nameInput!.value = 'Mila Muster';
     nameInput!.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -575,7 +654,9 @@ describe('Dashboard', () => {
 
   it('keeps the customer create work page busy and prevents duplicate posts while saving', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -587,7 +668,9 @@ describe('Dashboard', () => {
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
-    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerName');
+    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#workPageCustomerName',
+    );
     nameInput!.value = 'Mila Muster';
     nameInput!.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -597,7 +680,9 @@ describe('Dashboard', () => {
 
     const createRequest = httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customers`);
     expect(buttonByText(fixture, 'Speichern').disabled).toBeTrue();
-    expect((fixture.nativeElement as HTMLElement).querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[aria-busy="true"]'),
+    ).not.toBeNull();
 
     buttonByText(fixture, 'Speichern').click();
     httpTesting.expectNone(`${runtimeConfig.apiBaseUrl}/customers`);
@@ -621,7 +706,9 @@ describe('Dashboard', () => {
 
   it('shows a friendly customer create error and does not create a local customer node', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -633,35 +720,42 @@ describe('Dashboard', () => {
     graphNodeButton(fixture, 'Hinzufügen').click();
     fixture.detectChanges();
 
-    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#workPageCustomerName');
+    const nameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#workPageCustomerName',
+    );
     nameInput!.value = 'Mila Muster';
     nameInput!.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
     buttonByText(fixture, 'Speichern').click();
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customers`).flush(
-      { detail: 'Validation failed' },
-      { status: 400, statusText: 'Bad Request' },
-    );
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customers`)
+      .flush({ detail: 'Validation failed' }, { status: 400, statusText: 'Bad Request' });
     tick(230);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
 
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(host.textContent).toContain('Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.');
+    expect(host.textContent).toContain(
+      'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
+    );
     expect(graphNodeLabels(fixture)).not.toContain('Mila Muster');
     expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hinzufügen');
     expect(buttonByText(fixture, 'Speichern').disabled).toBeFalse();
 
     buttonByText(fixture, 'Speichern').click();
-    expect(httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customers`).request.method).toBe('POST');
+    expect(httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customers`).request.method).toBe(
+      'POST',
+    );
   }));
 
-  it('opens customer favorites with real loaded customers instead of a static empty-state stub', fakeAsync(() => {
+  it('toggles customer favorites as graph children without opening a round work page', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -675,40 +769,87 @@ describe('Dashboard', () => {
     expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     const dialog = host.querySelector('[role="dialog"]');
-    const region = dialog?.querySelector('[role="region"]');
 
-    expect(dialog?.textContent).toContain('Kundenfavoriten');
-    expect(dialog?.textContent).toContain('Bis zu sechs favorisierte Kund:innen sind als Instanzknoten direkt am Favoriten-Knoten sichtbar.');
-    expect(dialog?.textContent).toContain('Katja Gross');
-    expect(dialog?.textContent).toContain('Alex Sommer');
-    expect(dialog?.textContent).not.toContain('Noch keine Kund:innen vorhanden. Kund:in hinzufügen.');
-    expect(region?.getAttribute('aria-label')).toBe('Kundenfavoriten, scrollbarer Inhalt');
-    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Alex Sommer']));
-    expect(graphNodeButton(fixture, 'Katja Gross').querySelectorAll('.workspace-graph__label-line')).toHaveSize(2);
-    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-label')).toContain('Katja Gross, Kunden-Instanz');
-    expect(dialog?.textContent).toContain('Schließen');
-    expect(dialog?.textContent).not.toContain('Speichern');
+    expect(dialog).toBeNull();
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-label')).toContain('Domäne');
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-label')).toContain(
+      'aufgeklappt',
+    );
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-label')).toContain(
+      'kein separates Fenster',
+    );
+    expect(host.textContent).toContain('Favoriten ist aufgeklappt');
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Favoriten', 'Katja Gross', 'Alex Sommer']),
+    );
+    expect(
+      graphNodeButton(fixture, 'Katja Gross').querySelectorAll('.workspace-graph__label-line'),
+    ).toHaveSize(2);
+    expect(graphNodeButton(fixture, 'Katja Gross').getAttribute('aria-label')).toContain(
+      'Katja Gross, Kunden-Instanz',
+    );
+
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('false');
+    expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
   }));
 
-  it('opens a personal favorite customer node directly as a read-only profile', fakeAsync(() => {
+  it('keeps an empty favorites node operable without opening an empty favorites dialog', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
     });
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
-      { customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null },
-    ]);
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([]);
     fixture.detectChanges();
 
     expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
-    closeActiveWorkPage(fixture);
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Favoriten').getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeLabels(fixture)).toEqual(jasmine.arrayContaining(['Kunden', 'Favoriten']));
+    expect(graphNodeLabels(fixture)).not.toContain(
+      'Noch keine Kund:innen vorhanden. Kund:in hinzufügen.',
+    );
+  }));
+
+  it('opens a personal favorite customer node directly as a read-only profile', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Favoriten').click();
+    fixture.detectChanges();
 
     graphNodeButton(fixture, 'Katja Gross').click();
     fixture.detectChanges();
@@ -722,14 +863,18 @@ describe('Dashboard', () => {
     expect(dialog?.textContent).toContain('Katja Gross Profil');
     expect(dialog?.textContent).toContain('Lesemodus · keine direkte Bearbeitung');
     expect(dialog?.textContent).toContain('Zum Favoriten-Knoten');
-    expect((host.textContent ?? '')).toContain('Der Favoriten-Kundenknoten öffnet das Kundenprofil direkt im Lesemodus.');
+    expect(host.textContent ?? '').toContain(
+      'Der Favoriten-Kundenknoten öffnet das Kundenprofil direkt im Lesemodus.',
+    );
     expect(profile?.getAttribute('aria-label')).toBe('Katja Gross Kundenprofil im Lesemodus');
     expect(document.activeElement).toBe(profile);
   }));
 
   it('opens a day planning calendar renderer stub from the calendar graph node', () => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -756,7 +901,9 @@ describe('Dashboard', () => {
 
   it('pins and removes a customer from search through the personal favorites API', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
@@ -781,7 +928,9 @@ describe('Dashboard', () => {
     });
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Katja Gross ist jetzt dein persönlicher Favorit.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Katja Gross ist jetzt dein persönlicher Favorit.',
+    );
     expect(graphNodeLabels(fixture)).toContain('Katja Gross');
     expect(favoriteToggleButtons(fixture)[0].textContent).toContain('Aus Favoriten entfernen');
 
@@ -789,32 +938,45 @@ describe('Dashboard', () => {
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites/7`).flush(null);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Katja Gross wurde aus deinen persönlichen Favoriten entfernt.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Katja Gross wurde aus deinen persönlichen Favoriten entfernt.',
+    );
     expect(favoriteToggleButtons(fixture)[0].textContent).toContain('Als Favorit anheften');
     expect(graphNodeLabels(fixture)).not.toContain('Katja Gross');
   }));
 
   it('lets admins confirm and delete a customer from a customer action node', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
     });
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
-      { customerId: 7, firstName: 'Katja', lastName: 'Gross', email: 'katja.gross@example.local', profileImageBase64: null },
-    ]);
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([
+        {
+          customerId: 7,
+          firstName: 'Katja',
+          lastName: 'Gross',
+          email: 'katja.gross@example.local',
+          profileImageBase64: null,
+        },
+      ]);
     fixture.detectChanges();
 
     openCustomerSearchFromGraph(fixture);
     setCustomerSearchTerm(fixture, 'katja');
-    flushCustomerSearch('katja', [customerDto(7, 'Katja Gross', { email: 'katja.gross@example.local' })]);
+    flushCustomerSearch('katja', [
+      customerDto(7, 'Katja Gross', { email: 'katja.gross@example.local' }),
+    ]);
     expect(customerSearchResultButtons(fixture)).toHaveSize(1);
     closeActiveWorkPage(fixture);
 
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
-    closeActiveWorkPage(fixture);
     graphNodeButton(fixture, 'Katja Gross').click();
     fixture.detectChanges();
     tick();
@@ -830,7 +992,9 @@ describe('Dashboard', () => {
     tick();
     fixture.detectChanges();
 
-    const confirmationDialog = (fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]');
+    const confirmationDialog = (fixture.nativeElement as HTMLElement).querySelector(
+      '[role="dialog"]',
+    );
     expect(confirmationDialog?.textContent).toContain('Katja Gross löschen');
     expect(confirmationDialog?.textContent).toContain('Diese Aktion ist destruktiv');
     expect(confirmationDialog?.textContent).toContain('katja.gross@example.local');
@@ -856,20 +1020,21 @@ describe('Dashboard', () => {
     auth.setRoles(['ROLE_groomer']);
 
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'groomer@grooming-manager.local',
       roles: ['ROLE_groomer'],
     });
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([
-      { customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null },
-    ]);
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .flush([{ customerId: 7, firstName: 'Katja', lastName: 'Gross', profileImageBase64: null }]);
     fixture.detectChanges();
 
     expandCustomersNode(fixture);
     graphNodeButton(fixture, 'Favoriten').click();
     fixture.detectChanges();
-    closeActiveWorkPage(fixture);
     graphNodeButton(fixture, 'Katja Gross').click();
     fixture.detectChanges();
     tick();
@@ -883,7 +1048,9 @@ describe('Dashboard', () => {
 
   it('shows a friendly limit message when the favorites API rejects a seventh favorite', fakeAsync(() => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -904,10 +1071,12 @@ describe('Dashboard', () => {
     flushCustomerSearch('muster', [customerDto(8, 'Mila Muster')]);
 
     favoriteToggleButtons(fixture)[0].click();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites/8`).flush(
-      { detail: 'Maximal 6 Kundenfavoriten erlaubt.' },
-      { status: 409, statusText: 'Conflict' },
-    );
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites/8`)
+      .flush(
+        { detail: 'Maximal 6 Kundenfavoriten erlaubt.' },
+        { status: 409, statusText: 'Conflict' },
+      );
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
@@ -920,7 +1089,9 @@ describe('Dashboard', () => {
     auth.setRoles(['ROLE_kunde']);
 
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'kunde@grooming-manager.local',
       roles: ['ROLE_kunde'],
@@ -937,7 +1108,9 @@ describe('Dashboard', () => {
 
   it('normalizes a fully expanded custom-flex graph when switching back to focused work', () => {
     fixture.detectChanges();
-    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/status`).flush({ status: 'UP', service: 'backend' });
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
     httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
       username: 'admin@grooming-manager.local',
       roles: ['ROLE_admin'],
@@ -959,8 +1132,17 @@ describe('Dashboard', () => {
     buttonByText(fixture, 'Focused Work').click();
     fixture.detectChanges();
 
-    expect(graphNodeLabels(fixture)).toEqual(['Start Schnittstelle 2', 'Groomer', 'Kalender', 'Admin', 'Kunden', 'Hunde']);
+    expect(graphNodeLabels(fixture)).toEqual([
+      'Start Schnittstelle 2',
+      'Groomer',
+      'Kalender',
+      'Admin',
+      'Kunden',
+      'Hunde',
+    ]);
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Groomer hinzufügen');
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Start Schnittstelle 2');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe(
+      'Start Schnittstelle 2',
+    );
   });
 });

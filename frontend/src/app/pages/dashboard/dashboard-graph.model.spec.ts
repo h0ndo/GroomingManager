@@ -2,12 +2,19 @@ import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
   expandableDashboardGraphNodeIds,
+  hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
+  isFunctionalDashboardGraphNode,
   type CustomerInstance,
 } from './dashboard-graph.model';
 
 const favoriteCustomers: CustomerInstance[] = [
-  { id: 'customer-katja-gross', firstName: 'Katja', lastName: 'Gross', avatarUrl: '/avatars/katja.png' },
+  {
+    id: 'customer-katja-gross',
+    firstName: 'Katja',
+    lastName: 'Gross',
+    avatarUrl: '/avatars/katja.png',
+  },
   { id: 'customer-alex-sommer', firstName: 'Alex', lastName: 'Sommer' },
 ];
 
@@ -15,9 +22,19 @@ describe('dashboard graph model', () => {
   it('starts with a branded root node and only the top-level domains visible', () => {
     const nodes = buildDashboardGraphNodes([], new Set());
     const edges = buildDashboardGraphEdges([], new Set());
-    const startNode = nodes.find((node) => node.id === 'start') as (typeof nodes)[number] & { logoUrl?: string; rootNodeSize?: string };
+    const startNode = nodes.find((node) => node.id === 'start') as (typeof nodes)[number] & {
+      logoUrl?: string;
+      rootNodeSize?: string;
+    };
 
-    expect(nodes.map((node) => node.id)).toEqual(['start', 'groomers', 'calendar', 'admin', 'customers', 'dogs']);
+    expect(nodes.map((node) => node.id)).toEqual([
+      'start',
+      'groomers',
+      'calendar',
+      'admin',
+      'customers',
+      'dogs',
+    ]);
     expect(startNode.label).toBe('Start Schnittstelle 2');
     expect(startNode.logoUrl).toBe('/s2.png');
     expect(startNode.rootNodeSize).toBe('7.5rem');
@@ -32,11 +49,34 @@ describe('dashboard graph model', () => {
 
   it('shows second-level customer search, add and favorites only for manager roles', () => {
     const expandedNodeIds = new Set(['calendar', 'customers']);
-    const nodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'groomer');
+    const nodes = buildDashboardGraphNodes(
+      favoriteCustomers,
+      expandedNodeIds,
+      undefined,
+      'groomer',
+    );
     const edges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'groomer');
 
     expect(nodes.map((node) => node.id)).toEqual(
-      jasmine.arrayContaining(['start', 'calendar', 'customers', 'appointments', 'customer-search', 'customer-add', 'customer-favorites']),
+      jasmine.arrayContaining([
+        'start',
+        'calendar',
+        'customers',
+        'appointments',
+        'customer-search',
+        'customer-add',
+        'customer-favorites',
+      ]),
+    );
+    expect(nodes.find((node) => node.id === 'customer-favorites')).toEqual(
+      jasmine.objectContaining({
+        kind: 'domain',
+        description:
+          'Strukturknoten für bis zu 6 angeheftete Kunden-Instanzen. Sichtbar für Admins und Groomer.',
+      }),
+    );
+    expect(nodes.find((node) => node.id === 'customer-favorites')).not.toEqual(
+      jasmine.objectContaining({ action: jasmine.anything() }),
     );
     expect(nodes.map((node) => node.id)).not.toContain('admin-groomer-add');
     expect(nodes.map((node) => node.id)).not.toContain('groomer-appointment-list');
@@ -51,15 +91,41 @@ describe('dashboard graph model', () => {
     expect(edges).not.toContain({ from: 'admin', to: 'admin-groomer-add' });
   });
 
+  it('treats the favorites node as an expandable structural node even without favorites', () => {
+    const nodes = buildDashboardGraphNodes([], new Set(['customers']), undefined, 'admin');
+    const favoritesNode = nodes.find((node) => node.id === 'customer-favorites');
+
+    expect(favoritesNode).toBeDefined();
+    expect(hasDashboardGraphChildren('customer-favorites', [], 'admin')).toBeTrue();
+    expect(isFunctionalDashboardGraphNode(favoritesNode!)).toBeFalse();
+    expect(
+      buildDashboardGraphNodes(
+        [],
+        new Set(['customers', 'customer-favorites']),
+        undefined,
+        'admin',
+      ).map((node) => node.id),
+    ).toEqual(jasmine.arrayContaining(['customer-favorites']));
+    expect(
+      buildDashboardGraphEdges([], new Set(['customers', 'customer-favorites']), 'admin').filter(
+        (edge) => edge.from === 'customer-favorites',
+      ),
+    ).toEqual([]);
+  });
+
   it('hides search and favorites for the customer role and exposes only the own profile area', () => {
     const expandedNodeIds = new Set(['customers']);
     const nodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'kunde');
     const edges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'kunde');
 
-    expect(nodes.map((node) => node.id)).toEqual(jasmine.arrayContaining(['customers', 'customer-self-profile']));
+    expect(nodes.map((node) => node.id)).toEqual(
+      jasmine.arrayContaining(['customers', 'customer-self-profile']),
+    );
     expect(nodes.map((node) => node.id)).not.toContain('customer-search');
     expect(nodes.map((node) => node.id)).not.toContain('customer-favorites');
-    expect(edges).toEqual(jasmine.arrayContaining([{ from: 'customers', to: 'customer-self-profile' }]));
+    expect(edges).toEqual(
+      jasmine.arrayContaining([{ from: 'customers', to: 'customer-self-profile' }]),
+    );
     expect(edges).not.toContain({ from: 'customers', to: 'customer-search' });
   });
 
@@ -101,7 +167,9 @@ describe('dashboard graph model', () => {
         payload: sevenCustomers[0],
       }),
     );
-    expect(edges).toEqual(jasmine.arrayContaining([{ from: 'customer-favorites', to: 'customer-1' }]));
+    expect(edges).toEqual(
+      jasmine.arrayContaining([{ from: 'customer-favorites', to: 'customer-1' }]),
+    );
   });
 
   it('keeps one to six favorites readable with compact two-line labels and a wider radial distance', () => {
@@ -110,7 +178,10 @@ describe('dashboard graph model', () => {
       firstName: `SehrlangerVorname${index + 1}`,
       lastName: `SehrlangerNachname${index + 1}`,
     }));
-    const nodes = buildDashboardGraphNodes(sixCustomers, new Set(['customers', 'customer-favorites']));
+    const nodes = buildDashboardGraphNodes(
+      sixCustomers,
+      new Set(['customers', 'customer-favorites']),
+    );
     const favoriteNodes = nodes.filter((node) => node.kind === 'instance');
 
     expect(favoriteNodes).toHaveSize(6);
@@ -121,9 +192,10 @@ describe('dashboard graph model', () => {
       expect(node.labelLines?.every((line) => line.length <= 13)).toBeTrue();
     });
 
-    const singleFavoriteNodes = buildDashboardGraphNodes([sixCustomers[0]], new Set(['customers', 'customer-favorites'])).filter(
-      (node) => node.kind === 'instance',
-    );
+    const singleFavoriteNodes = buildDashboardGraphNodes(
+      [sixCustomers[0]],
+      new Set(['customers', 'customer-favorites']),
+    ).filter((node) => node.kind === 'instance');
 
     expect(singleFavoriteNodes).toHaveSize(1);
     expect(singleFavoriteNodes[0].labelLines).toEqual(['SehrlangerVo…', 'SehrlangerNa…']);
@@ -157,19 +229,42 @@ describe('dashboard graph model', () => {
   it('shows destructive customer delete action nodes only for admins', () => {
     const expandedNodeIds = new Set(['customers', 'customer-favorites', 'customer-katja-gross']);
 
-    const adminNodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'admin');
+    const adminNodes = buildDashboardGraphNodes(
+      favoriteCustomers,
+      expandedNodeIds,
+      undefined,
+      'admin',
+    );
     const adminEdges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'admin');
-    const groomerNodes = buildDashboardGraphNodes(favoriteCustomers, expandedNodeIds, undefined, 'groomer');
+    const groomerNodes = buildDashboardGraphNodes(
+      favoriteCustomers,
+      expandedNodeIds,
+      undefined,
+      'groomer',
+    );
     const groomerEdges = buildDashboardGraphEdges(favoriteCustomers, expandedNodeIds, 'groomer');
 
     expect(adminNodes.map((node) => node.id)).toContain('customer-katja-gross-delete');
-    expect(adminEdges).toContain({ from: 'customer-katja-gross', to: 'customer-katja-gross-delete' });
+    expect(adminEdges).toContain({
+      from: 'customer-katja-gross',
+      to: 'customer-katja-gross-delete',
+    });
     expect(groomerNodes.map((node) => node.id)).not.toContain('customer-katja-gross-delete');
-    expect(groomerEdges).not.toContain({ from: 'customer-katja-gross', to: 'customer-katja-gross-delete' });
+    expect(groomerEdges).not.toContain({
+      from: 'customer-katja-gross',
+      to: 'customer-katja-gross-delete',
+    });
   });
 
   it('returns every expandable node id for expanding the current flex graph', () => {
-    expect(expandableDashboardGraphNodeIds([])).toEqual(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites']);
+    expect(expandableDashboardGraphNodeIds([])).toEqual([
+      'groomers',
+      'calendar',
+      'admin',
+      'customers',
+      'dogs',
+      'customer-favorites',
+    ]);
 
     expect(expandableDashboardGraphNodeIds(favoriteCustomers)).toEqual([
       'groomers',
@@ -194,13 +289,27 @@ describe('dashboard graph model', () => {
   });
 
   it('detects whether the current flex graph is fully expanded', () => {
-    expect(isDashboardGraphFullyExpanded([], new Set(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites']))).toBeTrue();
+    expect(
+      isDashboardGraphFullyExpanded(
+        [],
+        new Set(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites']),
+      ),
+    ).toBeTrue();
     expect(isDashboardGraphFullyExpanded([], new Set(['groomers', 'calendar']))).toBeFalse();
 
     expect(
       isDashboardGraphFullyExpanded(
         favoriteCustomers,
-        new Set(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites', 'customer-katja-gross', 'customer-alex-sommer']),
+        new Set([
+          'groomers',
+          'calendar',
+          'admin',
+          'customers',
+          'dogs',
+          'customer-favorites',
+          'customer-katja-gross',
+          'customer-alex-sommer',
+        ]),
       ),
     ).toBeTrue();
   });

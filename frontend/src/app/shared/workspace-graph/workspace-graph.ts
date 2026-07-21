@@ -1,15 +1,21 @@
 import { NgClass } from '@angular/common';
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, computed, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostListener,
+  Input,
+  Output,
+  ViewChild,
+  computed,
+  signal,
+} from '@angular/core';
 import { computeRadialGraphLayout } from './core/radial-graph-layout';
 
 export type WorkspaceGraphNodeKind = 'root' | 'domain' | 'page' | 'action' | 'instance';
 
 export type WorkspaceGraphAction =
-  | 'navigate'
-  | 'open-panel'
-  | 'create-instance'
-  | 'remove-instance'
-  | 'custom';
+  'navigate' | 'open-panel' | 'create-instance' | 'remove-instance' | 'custom';
 
 export type WorkspaceGraphNode = {
   id: string;
@@ -111,16 +117,26 @@ export class WorkspaceGraph {
     const pan = this.pan();
     return `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${this.zoom()})`;
   });
-  protected readonly linearGraphNodes = computed<LinearGraphNode[]>(() => this.buildLinearGraphNodes());
+  protected readonly linearGraphNodes = computed<LinearGraphNode[]>(() =>
+    this.buildLinearGraphNodes(),
+  );
   protected readonly linearGraphRoot = computed<LinearGraphNode | undefined>(() =>
     this.linearGraphNodes().find((entry) => entry.node.id === 'start'),
   );
-  protected readonly linearGraphGroups = computed<LinearGraphGroup[]>(() => this.buildLinearGraphGroups());
+  protected readonly linearGraphGroups = computed<LinearGraphGroup[]>(() =>
+    this.buildLinearGraphGroups(),
+  );
   protected readonly linearGraphOrphans = computed<LinearGraphNode[]>(() =>
     this.linearGraphNodes().filter((entry) => entry.node.id !== 'start' && entry.depth === 0),
   );
 
-  private dragStart: { pointerId: number; startX: number; startY: number; panX: number; panY: number } | null = null;
+  private dragStart: {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    panX: number;
+    panY: number;
+  } | null = null;
   private nodeDragStart: {
     pointerId: number;
     nodeId: string;
@@ -132,7 +148,9 @@ export class WorkspaceGraph {
   } | null = null;
   private suppressNextClickNodeId: string | null = null;
 
-  protected edgeLine(edge: WorkspaceGraphEdge): { x1: number; y1: number; x2: number; y2: number } | null {
+  protected edgeLine(
+    edge: WorkspaceGraphEdge,
+  ): { x1: number; y1: number; x2: number; y2: number } | null {
     const from = this.nodeById().get(edge.from);
     const to = this.nodeById().get(edge.to);
 
@@ -211,7 +229,12 @@ export class WorkspaceGraph {
       return this.centeredAutoLayoutPosition(node, autoPosition);
     }
 
-    if (this.lockAnchoredNodesToAutoLayout && this.autoLayout && autoPosition && node.layout?.angle !== undefined) {
+    if (
+      this.lockAnchoredNodesToAutoLayout &&
+      this.autoLayout &&
+      autoPosition &&
+      node.layout?.angle !== undefined
+    ) {
       return { x: autoPosition.x, y: autoPosition.y };
     }
 
@@ -242,7 +265,10 @@ export class WorkspaceGraph {
     return { x: node.x ?? this.width / 2, y: node.y ?? this.height / 2 };
   }
 
-  protected nodePositionRelativeToParent(node: WorkspaceGraphNode, autoPosition: Point): Point | null {
+  protected nodePositionRelativeToParent(
+    node: WorkspaceGraphNode,
+    autoPosition: Point,
+  ): Point | null {
     const parentEdge = this.parentEdge(node);
 
     if (!parentEdge) {
@@ -268,7 +294,10 @@ export class WorkspaceGraph {
     return this.edges.find((edge) => edge.to === node.id);
   }
 
-  private centeredAutoLayoutPosition(node: WorkspaceGraphNode, autoPosition: Point | undefined): Point {
+  private centeredAutoLayoutPosition(
+    node: WorkspaceGraphNode,
+    autoPosition: Point | undefined,
+  ): Point {
     const centeredPosition = this.centeredNodeAutoPosition();
 
     if (!autoPosition || !centeredPosition) {
@@ -286,11 +315,24 @@ export class WorkspaceGraph {
   }
 
   private shouldCenterActiveNode(autoPosition: Point | undefined): boolean {
-    return this.lockAnchoredNodesToAutoLayout && this.autoLayout && !!this.centeredNodeId && !!autoPosition;
+    return (
+      this.lockAnchoredNodesToAutoLayout &&
+      this.autoLayout &&
+      !!this.centeredNodeId &&
+      !!autoPosition
+    );
   }
 
-  private shouldFollowParentPosition(node: WorkspaceGraphNode, autoPosition: Point | undefined): boolean {
-    return !this.lockAnchoredNodesToAutoLayout && this.autoLayout && !!autoPosition && this.parentEdge(node)?.from !== 'start';
+  private shouldFollowParentPosition(
+    node: WorkspaceGraphNode,
+    autoPosition: Point | undefined,
+  ): boolean {
+    return (
+      !this.lockAnchoredNodesToAutoLayout &&
+      this.autoLayout &&
+      !!autoPosition &&
+      this.parentEdge(node)?.from !== 'start'
+    );
   }
 
   protected nodeSpawnOffset(node: WorkspaceGraphNode): Point {
@@ -323,6 +365,7 @@ export class WorkspaceGraph {
       'workspace-graph__node--draggable': this.isNodeDraggable(node),
       'workspace-graph__node--expanded': this.isNodeExpanded(node),
       'workspace-graph__node--collapsed': this.isNodeExpandable(node) && !this.isNodeExpanded(node),
+      'workspace-graph__node--avatar': !!node.avatarUrl,
     };
   }
 
@@ -393,6 +436,10 @@ export class WorkspaceGraph {
 
   protected nodeActionHint(node: WorkspaceGraphNode): string {
     if (this.isNodeExpandable(node)) {
+      if (node.kind === 'domain') {
+        return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; es wird kein separates Fenster geöffnet';
+      }
+
       return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; funktionale Knoten können zusätzlich eine Seite oder Aktion öffnen';
     }
 
@@ -481,11 +528,17 @@ export class WorkspaceGraph {
     const viewportHeight = viewportElement?.clientHeight ?? this.height;
     const fitPadding = WorkspaceGraph.FIT_VIEWPORT_PADDING;
     const safeViewportWidth = Math.max(1, viewportWidth - fitPadding * 2);
-    const safeViewportHeight = Math.max(1, viewportHeight - fitPadding - WorkspaceGraph.FIT_BOTTOM_SAFE_AREA);
+    const safeViewportHeight = Math.max(
+      1,
+      viewportHeight - fitPadding - WorkspaceGraph.FIT_BOTTOM_SAFE_AREA,
+    );
     const bounds = this.graphBounds();
     const boundsWidth = Math.max(1, bounds.right - bounds.left);
     const boundsHeight = Math.max(1, bounds.bottom - bounds.top);
-    const fittingZoom = Math.min(safeViewportWidth / boundsWidth, safeViewportHeight / boundsHeight);
+    const fittingZoom = Math.min(
+      safeViewportWidth / boundsWidth,
+      safeViewportHeight / boundsHeight,
+    );
     const nextZoom = Math.min(
       WorkspaceGraph.MAX_ZOOM,
       Math.max(WorkspaceGraph.MIN_READABLE_ZOOM, fittingZoom),
@@ -622,15 +675,24 @@ export class WorkspaceGraph {
 
   private setZoom(value: number): void {
     this.zoom.set(
-      Math.min(WorkspaceGraph.MAX_ZOOM, Math.max(WorkspaceGraph.MIN_READABLE_ZOOM, Number(value.toFixed(2)))),
+      Math.min(
+        WorkspaceGraph.MAX_ZOOM,
+        Math.max(WorkspaceGraph.MIN_READABLE_ZOOM, Number(value.toFixed(2))),
+      ),
     );
   }
 
   private graphBounds(): { left: number; right: number; top: number; bottom: number } {
     const nodeBounds = this.nodes.map((node) => {
       const position = this.nodePosition(node);
-      const horizontalPadding = Math.max(WorkspaceGraph.FIT_NODE_RADIUS, WorkspaceGraph.FIT_LABEL_SAFE_WIDTH / 2);
-      const verticalPadding = Math.max(WorkspaceGraph.FIT_NODE_RADIUS, WorkspaceGraph.FIT_LABEL_SAFE_HEIGHT / 2);
+      const horizontalPadding = Math.max(
+        WorkspaceGraph.FIT_NODE_RADIUS,
+        WorkspaceGraph.FIT_LABEL_SAFE_WIDTH / 2,
+      );
+      const verticalPadding = Math.max(
+        WorkspaceGraph.FIT_NODE_RADIUS,
+        WorkspaceGraph.FIT_LABEL_SAFE_HEIGHT / 2,
+      );
 
       return {
         left: position.x - horizontalPadding,
@@ -654,7 +716,8 @@ export class WorkspaceGraph {
       left: Math.min(...bounds.map((bound) => bound.left)) - WorkspaceGraph.FIT_VIEWPORT_PADDING,
       right: Math.max(...bounds.map((bound) => bound.right)) + WorkspaceGraph.FIT_VIEWPORT_PADDING,
       top: Math.min(...bounds.map((bound) => bound.top)) - WorkspaceGraph.FIT_VIEWPORT_PADDING,
-      bottom: Math.max(...bounds.map((bound) => bound.bottom)) + WorkspaceGraph.FIT_BOTTOM_SAFE_AREA,
+      bottom:
+        Math.max(...bounds.map((bound) => bound.bottom)) + WorkspaceGraph.FIT_BOTTOM_SAFE_AREA,
     };
   }
 
@@ -701,11 +764,15 @@ export class WorkspaceGraph {
   private childNodes(nodeId: string): WorkspaceGraphNode[] {
     const nodesById = this.nodeById();
 
-    return this.edges.map((edge) => (edge.from === nodeId ? nodesById.get(edge.to) : undefined)).filter((node) => !!node);
+    return this.edges
+      .map((edge) => (edge.from === nodeId ? nodesById.get(edge.to) : undefined))
+      .filter((node) => !!node);
   }
   private buildLinearGraphGroups(): LinearGraphGroup[] {
     const descendantsByDomain = new Map<string, LinearGraphNode[]>();
-    const topLevelEntries = this.linearGraphNodes().filter((entry) => this.parentEdge(entry.node)?.from === 'start');
+    const topLevelEntries = this.linearGraphNodes().filter(
+      (entry) => this.parentEdge(entry.node)?.from === 'start',
+    );
 
     topLevelEntries.forEach((entry) => descendantsByDomain.set(entry.node.id, []));
 
@@ -716,15 +783,22 @@ export class WorkspaceGraph {
         return;
       }
 
-      descendantsByDomain.set(topLevelParent, [...(descendantsByDomain.get(topLevelParent) ?? []), entry]);
+      descendantsByDomain.set(topLevelParent, [
+        ...(descendantsByDomain.get(topLevelParent) ?? []),
+        entry,
+      ]);
     });
 
-    return topLevelEntries.map((domain) => ({ domain, children: descendantsByDomain.get(domain.node.id) ?? [] }));
+    return topLevelEntries.map((domain) => ({
+      domain,
+      children: descendantsByDomain.get(domain.node.id) ?? [],
+    }));
   }
 
   protected linearGroupLabel(group: LinearGraphGroup): string {
     const childCount = group.children.length;
-    const expansionState = childCount > 0 ? 'aufgeklappt' : 'eingeklappt oder ohne sichtbare Kinder';
+    const expansionState =
+      childCount > 0 ? 'aufgeklappt' : 'eingeklappt oder ohne sichtbare Kinder';
     const activeState = group.domain.node.id === this.activeNodeId ? ', aktiver Bereich' : '';
 
     return `${group.domain.node.label}, ${this.nodeKindLabel(group.domain.node)}, ${expansionState}, ${childCount} sichtbare Einträge${activeState}`;
@@ -737,7 +811,6 @@ export class WorkspaceGraph {
   protected childListId(node: WorkspaceGraphNode): string {
     return `workspace-graph-linear-children-${node.id}`;
   }
-
 
   private parentNode(node: WorkspaceGraphNode): WorkspaceGraphNode | undefined {
     const parentId = this.parentEdge(node)?.from;

@@ -13,7 +13,9 @@ type WorkspaceGraphTestHost = {
 };
 
 function buttonByText(fixture: ComponentFixture<WorkspaceGraph>, text: string): HTMLButtonElement {
-  const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+  const buttons = Array.from(
+    fixture.nativeElement.querySelectorAll('button'),
+  ) as HTMLButtonElement[];
   const button = buttons.find((candidate) => candidate.textContent?.includes(text));
 
   if (!button) {
@@ -69,7 +71,9 @@ describe('WorkspaceGraph', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
-    const rootButton = fixture.nativeElement.querySelector('[data-node-id="start"]') as HTMLButtonElement;
+    const rootButton = fixture.nativeElement.querySelector(
+      '[data-node-id="start"]',
+    ) as HTMLButtonElement;
     const customerButton = buttonByText(fixture, 'Kunden');
     const rootLogo = rootButton.querySelector('.workspace-graph__logo') as HTMLImageElement | null;
     const rootPosition = component.nodePosition(graphNodes[0]);
@@ -82,7 +86,9 @@ describe('WorkspaceGraph', () => {
     expect(rootLogo?.getAttribute('src')).toBe('/s2.png');
     expect(rootLogo?.getAttribute('alt')).toBe('');
     expect(rootButton.getAttribute('aria-label')).toContain('Start Schnittstelle 2, Übersicht');
-    expect(Math.hypot(customerPosition.x - rootPosition.x, customerPosition.y - rootPosition.y)).toBeGreaterThan(180);
+    expect(
+      Math.hypot(customerPosition.x - rootPosition.x, customerPosition.y - rootPosition.y),
+    ).toBeGreaterThan(180);
   });
 
   it('keeps fit-to-view at readable zoom and announces pannable overflow', () => {
@@ -100,10 +106,12 @@ describe('WorkspaceGraph', () => {
 
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.workspace-graph__viewport--pannable')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('#workspace-graph-fit-status')?.textContent).toContain(
-      'Ziehe oder scrolle',
-    );
+    expect(
+      fixture.nativeElement.querySelector('.workspace-graph__viewport--pannable'),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('#workspace-graph-fit-status')?.textContent,
+    ).toContain('Ziehe oder scrolle');
   });
 
   it('centers the active focused-work node and shifts the rest of the graph left', () => {
@@ -154,7 +162,9 @@ describe('WorkspaceGraph', () => {
     const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
     const customerButton = buttonByText(fixture, 'Kunden');
 
-    customerButton.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }));
+    customerButton.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 }),
+    );
     fixture.detectChanges();
 
     expect(component.isPanning()).toBeFalse();
@@ -185,7 +195,10 @@ describe('WorkspaceGraph', () => {
     const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
     const originalParentPosition = component.nodePosition(graphNodes[1]);
     const originalChildPosition = component.nodePosition(graphNodes[2]);
-    const movedParentPosition = { x: originalParentPosition.x + 180, y: originalParentPosition.y + 90 };
+    const movedParentPosition = {
+      x: originalParentPosition.x + 180,
+      y: originalParentPosition.y + 90,
+    };
 
     component.nodePositions.set({
       customers: movedParentPosition,
@@ -194,10 +207,19 @@ describe('WorkspaceGraph', () => {
 
     const movedChildPosition = component.nodePosition(graphNodes[2]);
 
-    expect(movedChildPosition.x - movedParentPosition.x).toBeCloseTo(originalChildPosition.x - originalParentPosition.x, 5);
-    expect(movedChildPosition.y - movedParentPosition.y).toBeCloseTo(originalChildPosition.y - originalParentPosition.y, 5);
+    expect(movedChildPosition.x - movedParentPosition.x).toBeCloseTo(
+      originalChildPosition.x - originalParentPosition.x,
+      5,
+    );
+    expect(movedChildPosition.y - movedParentPosition.y).toBeCloseTo(
+      originalChildPosition.y - originalParentPosition.y,
+      5,
+    );
 
-    const secondMovedParentPosition = { x: originalParentPosition.x - 120, y: originalParentPosition.y + 160 };
+    const secondMovedParentPosition = {
+      x: originalParentPosition.x - 120,
+      y: originalParentPosition.y + 160,
+    };
     component.nodePositions.set({
       customers: secondMovedParentPosition,
       'customer-search': originalChildPosition,
@@ -219,7 +241,7 @@ describe('WorkspaceGraph', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
       { id: 'customers', label: 'Kunden', kind: 'domain', layout: { angle: 0 } },
-      { id: 'customer-favorites', label: 'Favoriten', kind: 'page' },
+      { id: 'customer-favorites', label: 'Favoriten', kind: 'domain' },
       ...Array.from({ length: 6 }, (_, index) => ({
         id: `customer-${index + 1}`,
         label: `Kunde ${index + 1}`,
@@ -230,7 +252,10 @@ describe('WorkspaceGraph', () => {
     const graphEdges: WorkspaceGraphEdge[] = [
       { from: 'start', to: 'customers' },
       { from: 'customers', to: 'customer-favorites' },
-      ...Array.from({ length: 6 }, (_, index) => ({ from: 'customer-favorites', to: `customer-${index + 1}` })),
+      ...Array.from({ length: 6 }, (_, index) => ({
+        from: 'customer-favorites',
+        to: `customer-${index + 1}`,
+      })),
     ];
 
     fixture.componentRef.setInput('nodes', graphNodes);
@@ -247,12 +272,16 @@ describe('WorkspaceGraph', () => {
     expect(favoritesPosition.x).toBeCloseTo(520, 5);
     expect(favoritesPosition.y).toBeCloseTo(340, 5);
     favoritePositions.forEach((position) => {
-      expect(Math.hypot(position.x - favoritesPosition.x, position.y - favoritesPosition.y)).toBeCloseTo(190, 5);
+      expect(
+        Math.hypot(position.x - favoritesPosition.x, position.y - favoritesPosition.y),
+      ).toBeCloseTo(190, 5);
     });
     favoritePositions.slice(1).forEach((position, index) => {
       const previousPosition = favoritePositions[index];
 
-      expect(Math.hypot(position.x - previousPosition.x, position.y - previousPosition.y)).toBeGreaterThan(95);
+      expect(
+        Math.hypot(position.x - previousPosition.x, position.y - previousPosition.y),
+      ).toBeGreaterThan(95);
     });
 
     fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', false);
@@ -260,7 +289,10 @@ describe('WorkspaceGraph', () => {
     const customCustomerPosition = component.nodePosition(graphNodes[1]);
     const customFavoritesPosition = component.nodePosition(graphNodes[2]);
     const customFavoriteChildPosition = component.nodePosition(graphNodes[3]);
-    const movedCustomerPosition = { x: customCustomerPosition.x - 140, y: customCustomerPosition.y + 120 };
+    const movedCustomerPosition = {
+      x: customCustomerPosition.x - 140,
+      y: customCustomerPosition.y + 120,
+    };
     component.nodePositions.set({
       customers: movedCustomerPosition,
       'customer-1': customFavoriteChildPosition,
@@ -290,7 +322,12 @@ describe('WorkspaceGraph', () => {
   it('renders a synchronized hierarchical linear alternative for the visible graph nodes', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
-      { id: 'customers', label: 'Kunden', kind: 'domain', description: 'Kundenliste und Kundenkontext' },
+      {
+        id: 'customers',
+        label: 'Kunden',
+        kind: 'domain',
+        description: 'Kundenliste und Kundenkontext',
+      },
       { id: 'customer-search', label: 'Suchen', kind: 'action' },
     ];
     const graphEdges: WorkspaceGraphEdge[] = [
@@ -308,14 +345,19 @@ describe('WorkspaceGraph', () => {
     buttonByText(fixture, 'Als Liste anzeigen').click();
     fixture.detectChanges();
 
-    const linearText = fixture.nativeElement.querySelector('.workspace-graph__linear')?.textContent ?? '';
-    const activeLinearNode = fixture.nativeElement.querySelector('.workspace-graph__linear-node--active');
-    const groupHeadings = (Array.from(
-      fixture.nativeElement.querySelectorAll('.workspace-graph__linear-group h4'),
-    ) as HTMLElement[]).map(
-      (heading) => heading.textContent ?? '',
+    const linearText =
+      fixture.nativeElement.querySelector('.workspace-graph__linear')?.textContent ?? '';
+    const activeLinearNode = fixture.nativeElement.querySelector(
+      '.workspace-graph__linear-node--active',
     );
-    const childRows = Array.from(fixture.nativeElement.querySelectorAll('.workspace-graph__linear-list--children li')) as HTMLElement[];
+    const groupHeadings = (
+      Array.from(
+        fixture.nativeElement.querySelectorAll('.workspace-graph__linear-group h4'),
+      ) as HTMLElement[]
+    ).map((heading) => heading.textContent ?? '');
+    const childRows = Array.from(
+      fixture.nativeElement.querySelectorAll('.workspace-graph__linear-list--children li'),
+    ) as HTMLElement[];
 
     expect(linearText).toContain('Start');
     expect(linearText).toContain('Kunden');
@@ -323,7 +365,9 @@ describe('WorkspaceGraph', () => {
     expect(linearText.indexOf('Start')).toBeLessThan(linearText.indexOf('Kunden'));
     expect(linearText.indexOf('Kunden')).toBeLessThan(linearText.indexOf('Suchen'));
     expect(activeLinearNode?.textContent).toContain('Kunden');
-    expect(groupHeadings).toEqual(jasmine.arrayContaining([jasmine.stringContaining('Kunden, Domäne, aufgeklappt')]));
+    expect(groupHeadings).toEqual(
+      jasmine.arrayContaining([jasmine.stringContaining('Kunden, Domäne, aufgeklappt')]),
+    );
     expect(childRows[0].style.getPropertyValue('--graph-depth')).toBe('1');
   });
 
@@ -346,7 +390,9 @@ describe('WorkspaceGraph', () => {
     const customerButton = buttonByText(fixture, 'Kunden');
 
     expect(customerButton.getAttribute('aria-current')).toBe('true');
-    expect(customerButton.getAttribute('aria-label')).toContain('Kunden, Domäne. Aktiver Arbeitsknoten');
+    expect(customerButton.getAttribute('aria-label')).toContain(
+      'Kunden, Domäne. Aktiver Arbeitsknoten',
+    );
     expect(customerButton.getAttribute('aria-label')).toContain('gehört zu Start');
     expect(customerButton.getAttribute('aria-label')).toContain('verbunden mit Suchen');
   });
@@ -375,8 +421,8 @@ describe('WorkspaceGraph', () => {
     const startButton = buttonByText(fixture, 'Start');
     const customerButton = buttonByText(fixture, 'Kunden');
     const pageButton = buttonByText(fixture, 'Kundenliste');
-    const pseudoContents = [startButton, customerButton, pageButton].map((button) =>
-      getComputedStyle(button, '::after').content,
+    const pseudoContents = [startButton, customerButton, pageButton].map(
+      (button) => getComputedStyle(button, '::after').content,
     );
 
     expect(startButton.classList).toContain('workspace-graph__node--expanded');
@@ -407,8 +453,12 @@ describe('WorkspaceGraph', () => {
     fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', false);
     fixture.detectChanges();
 
-    expect(buttonByText(fixture, 'Start').classList).not.toContain('workspace-graph__node--draggable');
+    expect(buttonByText(fixture, 'Start').classList).not.toContain(
+      'workspace-graph__node--draggable',
+    );
     expect(buttonByText(fixture, 'Kunden').classList).toContain('workspace-graph__node--draggable');
-    expect(buttonByText(fixture, 'Suchen').classList).not.toContain('workspace-graph__node--draggable');
+    expect(buttonByText(fixture, 'Suchen').classList).not.toContain(
+      'workspace-graph__node--draggable',
+    );
   });
 });

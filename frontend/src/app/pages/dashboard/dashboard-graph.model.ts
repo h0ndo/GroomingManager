@@ -1,4 +1,7 @@
-import { WorkspaceGraphEdge, WorkspaceGraphNode } from '../../shared/workspace-graph/workspace-graph';
+import {
+  WorkspaceGraphEdge,
+  WorkspaceGraphNode,
+} from '../../shared/workspace-graph/workspace-graph';
 
 export type DashboardGraphRole = 'admin' | 'groomer' | 'kunde' | 'unknown';
 
@@ -209,13 +212,12 @@ const customerManagerNodes: WorkspaceGraphNode[] = [
   {
     id: CUSTOMER_FAVORITES_NODE_ID,
     label: 'Favoriten',
-    kind: 'page',
+    kind: 'domain',
     x: 230,
     y: 345,
     layout: { angle: 260 },
     icon: 'pi-star',
-    action: 'open-panel',
-    description: `Bis zu ${CUSTOMER_FAVORITE_LIMIT} angeheftete Kunden-Instanzen für schnellen Zugriff. Sichtbar für Admins und Groomer.`,
+    description: `Strukturknoten für bis zu ${CUSTOMER_FAVORITE_LIMIT} angeheftete Kunden-Instanzen. Sichtbar für Admins und Groomer.`,
   },
 ];
 
@@ -280,11 +282,15 @@ function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
     avatarUrl: customer.avatarUrl,
     action: 'custom',
     payload: customer,
-    description: 'Angehefteter konkreter Kunde mit Vorname, Nachname und optionalem Profilbild im Arbeitsgraphen',
+    description:
+      'Angehefteter konkreter Kunde mit Vorname, Nachname und optionalem Profilbild im Arbeitsgraphen',
   };
 }
 
-function customerActionNodes(customer: CustomerInstance, role: DashboardGraphRole = 'admin'): WorkspaceGraphNode[] {
+function customerActionNodes(
+  customer: CustomerInstance,
+  role: DashboardGraphRole = 'admin',
+): WorkspaceGraphNode[] {
   const nodes: WorkspaceGraphNode[] = [
     {
       id: `${customer.id}-profile`,
@@ -344,14 +350,22 @@ function canManageCustomerGraph(role: DashboardGraphRole): boolean {
 }
 
 function topLevelLayoutById(focusedTopLevelNodeId?: string): Map<string, number> {
-  const focusedAngle = isTopLevelNodeId(focusedTopLevelNodeId) ? (TOP_LEVEL_BASE_ANGLES.get(focusedTopLevelNodeId) ?? 0) : 0;
+  const focusedAngle = isTopLevelNodeId(focusedTopLevelNodeId)
+    ? (TOP_LEVEL_BASE_ANGLES.get(focusedTopLevelNodeId) ?? 0)
+    : 0;
 
   return new Map(
-    TOP_LEVEL_NODE_IDS.map((nodeId) => [nodeId, normalizeAngle((TOP_LEVEL_BASE_ANGLES.get(nodeId) ?? 0) - focusedAngle)]),
+    TOP_LEVEL_NODE_IDS.map((nodeId) => [
+      nodeId,
+      normalizeAngle((TOP_LEVEL_BASE_ANGLES.get(nodeId) ?? 0) - focusedAngle),
+    ]),
   );
 }
 
-function withTopLevelLayout(node: WorkspaceGraphNode, topLevelLayout: Map<string, number>): WorkspaceGraphNode {
+function withTopLevelLayout(
+  node: WorkspaceGraphNode,
+  topLevelLayout: Map<string, number>,
+): WorkspaceGraphNode {
   return {
     ...node,
     layout: {
@@ -391,7 +405,10 @@ function normalizeAngle(angle: number): number {
   return ((angle % 360) + 360) % 360;
 }
 
-function customerByNodeId(nodeId: string, customers: readonly CustomerInstance[]): CustomerInstance | undefined {
+function customerByNodeId(
+  nodeId: string,
+  customers: readonly CustomerInstance[],
+): CustomerInstance | undefined {
   return customers.find((customer) => customer.id === nodeId);
 }
 
@@ -400,11 +417,17 @@ export function isTopLevelDashboardGraphNode(nodeId: string): boolean {
 }
 
 export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolean {
-  if (node.id === 'start' || isTopLevelNodeId(node.id)) {
+  if (node.id === 'start' || node.id === CUSTOMER_FAVORITES_NODE_ID || isTopLevelNodeId(node.id)) {
     return false;
   }
 
-  return !!node.route || !!node.action || node.kind === 'page' || node.kind === 'action' || node.kind === 'instance';
+  return (
+    !!node.route ||
+    !!node.action ||
+    node.kind === 'page' ||
+    node.kind === 'action' ||
+    node.kind === 'instance'
+  );
 }
 
 export function expandableDashboardGraphNodeIds(
@@ -415,7 +438,11 @@ export function expandableDashboardGraphNodeIds(
     return [...TOP_LEVEL_NODE_IDS];
   }
 
-  return [...TOP_LEVEL_NODE_IDS, CUSTOMER_FAVORITES_NODE_ID, ...favoriteCustomers(customers).map((customer) => customer.id)];
+  return [
+    ...TOP_LEVEL_NODE_IDS,
+    CUSTOMER_FAVORITES_NODE_ID,
+    ...favoriteCustomers(customers).map((customer) => customer.id),
+  ];
 }
 
 export function isDashboardGraphFullyExpanded(
@@ -423,7 +450,9 @@ export function isDashboardGraphFullyExpanded(
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
 ): boolean {
-  return expandableDashboardGraphNodeIds(customers, role).every((nodeId) => expandedNodeIds.has(nodeId));
+  return expandableDashboardGraphNodeIds(customers, role).every((nodeId) =>
+    expandedNodeIds.has(nodeId),
+  );
 }
 
 export function buildDashboardGraphNodes(
@@ -433,12 +462,16 @@ export function buildDashboardGraphNodes(
   role: DashboardGraphRole = 'admin',
 ): WorkspaceGraphNode[] {
   const topLevelLayout = topLevelLayoutById(focusedTopLevelNodeId);
-  const nodes = [rootNode, ...topLevelNodes.map((node) => withTopLevelLayout(node, topLevelLayout))];
+  const nodes = [
+    rootNode,
+    ...topLevelNodes.map((node) => withTopLevelLayout(node, topLevelLayout)),
+  ];
   const visibleFavoriteCustomers = favoriteCustomers(customers);
 
   TOP_LEVEL_NODE_IDS.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
-      const childNodes = nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
+      const childNodes =
+        nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
 
       nodes.push(...childNodes.map((node) => withChildLayout(nodeId, node, topLevelLayout)));
     }
@@ -473,19 +506,27 @@ export function buildDashboardGraphEdges(
 
   TOP_LEVEL_NODE_IDS.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
-      const childNodes = nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
+      const childNodes =
+        nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
 
       edges.push(...childNodes.map((node) => ({ from: nodeId, to: node.id })));
     }
   });
 
   if (canManageCustomerGraph(role) && expandedNodeIds.has(CUSTOMER_FAVORITES_NODE_ID)) {
-    edges.push(...visibleFavoriteCustomers.map((customer) => ({ from: CUSTOMER_FAVORITES_NODE_ID, to: customer.id })));
+    edges.push(
+      ...visibleFavoriteCustomers.map((customer) => ({
+        from: CUSTOMER_FAVORITES_NODE_ID,
+        to: customer.id,
+      })),
+    );
   }
 
   visibleFavoriteCustomers.forEach((customer) => {
     if (expandedNodeIds.has(customer.id)) {
-      edges.push(...customerActionNodes(customer, role).map((node) => ({ from: customer.id, to: node.id })));
+      edges.push(
+        ...customerActionNodes(customer, role).map((node) => ({ from: customer.id, to: node.id })),
+      );
     }
   });
 
@@ -502,7 +543,7 @@ export function hasDashboardGraphChildren(
   }
 
   if (nodeId === CUSTOMER_FAVORITES_NODE_ID) {
-    return canManageCustomerGraph(role) && favoriteCustomers(customers).length > 0;
+    return canManageCustomerGraph(role);
   }
 
   return childrenByParent.has(nodeId) || !!customerByNodeId(nodeId, favoriteCustomers(customers));

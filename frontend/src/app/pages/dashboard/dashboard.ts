@@ -12,7 +12,11 @@ import {
   CircularWorkPageContentType,
   CircularWorkPageOrigin,
 } from '../../shared/circular-work-page/circular-work-page';
-import { WorkspaceGraph, WorkspaceGraphNode, WorkspaceGraphSelection } from '../../shared/workspace-graph/workspace-graph';
+import {
+  WorkspaceGraph,
+  WorkspaceGraphNode,
+  WorkspaceGraphSelection,
+} from '../../shared/workspace-graph/workspace-graph';
 import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
@@ -53,7 +57,8 @@ type CustomerDto = {
   profileImageBase64?: string | null;
 };
 
-type WorkspacePanelMode = 'overview' | 'list' | 'search' | 'create' | 'profile' | 'delete' | 'selected';
+type WorkspacePanelMode =
+  'overview' | 'list' | 'search' | 'create' | 'profile' | 'delete' | 'selected';
 type WorkspaceLayoutMode = 'focused-work' | 'custom-flex';
 
 type WorkspacePanel = {
@@ -101,7 +106,15 @@ type AgendaItem = {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [ButtonModule, CardModule, CircularWorkPage, FormsModule, RouterLink, TagModule, WorkspaceGraph],
+  imports: [
+    ButtonModule,
+    CardModule,
+    CircularWorkPage,
+    FormsModule,
+    RouterLink,
+    TagModule,
+    WorkspaceGraph,
+  ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -111,9 +124,12 @@ export class Dashboard implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly hostElement: ElementRef<HTMLElement> = inject(ElementRef);
 
-  @ViewChild(WorkspaceGraph, { read: ElementRef }) private workspaceGraphElement?: ElementRef<HTMLElement>;
+  @ViewChild(WorkspaceGraph, { read: ElementRef })
+  private workspaceGraphElement?: ElementRef<HTMLElement>;
 
-  protected readonly backendConnection = signal<'checking' | 'connected' | 'unavailable'>('checking');
+  protected readonly backendConnection = signal<'checking' | 'connected' | 'unavailable'>(
+    'checking',
+  );
   protected readonly me = signal<MeResponse | null>(null);
   protected readonly activeNodeId = signal('start');
   protected readonly expandedNodeIds = signal<ReadonlySet<string>>(new Set());
@@ -134,9 +150,24 @@ export class Dashboard implements OnInit {
   protected readonly customerDeleteError = signal('');
   protected readonly customerSearchResultLimit = 6;
   protected readonly dailyAgendaItems: AgendaItem[] = [
-    { time: '09:00', title: 'Katja Gross · Nala', detail: 'Waschen, Schneiden · 75 min', status: 'Bestätigt' },
-    { time: '11:00', title: 'Mila Muster · Bruno', detail: 'Krallen, Ohren · 30 min', status: 'Anfrage' },
-    { time: '14:30', title: 'Alex Sommer · Loki', detail: 'Komplettpflege · 90 min', status: 'Geplant' },
+    {
+      time: '09:00',
+      title: 'Katja Gross · Nala',
+      detail: 'Waschen, Schneiden · 75 min',
+      status: 'Bestätigt',
+    },
+    {
+      time: '11:00',
+      title: 'Mila Muster · Bruno',
+      detail: 'Krallen, Ohren · 30 min',
+      status: 'Anfrage',
+    },
+    {
+      time: '14:30',
+      title: 'Alex Sommer · Loki',
+      detail: 'Komplettpflege · 90 min',
+      status: 'Geplant',
+    },
   ];
   protected readonly activeWorkPage = signal<WorkspaceWorkPage | null>(null);
   protected readonly visibleCustomerSearchResults = computed(() =>
@@ -188,12 +219,31 @@ export class Dashboard implements OnInit {
     return 'Backend wird geprüft';
   });
   protected readonly backendConnectionSeverity = computed(() =>
-    this.backendConnection() === 'connected' ? 'success' : this.backendConnection() === 'unavailable' ? 'danger' : 'warn',
+    this.backendConnection() === 'connected'
+      ? 'success'
+      : this.backendConnection() === 'unavailable'
+        ? 'danger'
+        : 'warn',
   );
   protected readonly roleLinks = computed(() => [
-    { label: 'Admin-Bereich', route: '/admin', icon: 'pi-shield', visible: this.auth.hasRole('ROLE_admin') },
-    { label: 'Groomer-Bereich', route: '/groomer', icon: 'pi-calendar', visible: this.auth.hasRole('ROLE_groomer') },
-    { label: 'Kund:innen-Bereich', route: '/kunde', icon: 'pi-user', visible: this.auth.hasRole('ROLE_kunde') },
+    {
+      label: 'Admin-Bereich',
+      route: '/admin',
+      icon: 'pi-shield',
+      visible: this.auth.hasRole('ROLE_admin'),
+    },
+    {
+      label: 'Groomer-Bereich',
+      route: '/groomer',
+      icon: 'pi-calendar',
+      visible: this.auth.hasRole('ROLE_groomer'),
+    },
+    {
+      label: 'Kund:innen-Bereich',
+      route: '/kunde',
+      icon: 'pi-user',
+      visible: this.auth.hasRole('ROLE_kunde'),
+    },
   ]);
   protected readonly graphNodes = computed<WorkspaceGraphNode[]>(() =>
     buildDashboardGraphNodes(
@@ -225,7 +275,11 @@ export class Dashboard implements OnInit {
 
   protected handleGraphSelection(selection: WorkspaceGraphSelection): void {
     const node = selection.node;
-    const hasChildren = hasDashboardGraphChildren(node.id, this.favoriteCustomers(), this.graphRole());
+    const hasChildren = hasDashboardGraphChildren(
+      node.id,
+      this.favoriteCustomers(),
+      this.graphRole(),
+    );
     const isStructuralNode = hasChildren && !isFunctionalDashboardGraphNode(node);
 
     this.activeNodeId.set(node.id);
@@ -285,19 +339,6 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    if (node.id === 'customer-favorites') {
-      this.openCustomerListWorkPage(node, selection.sourceOrigin);
-      this.workspacePanel.set({
-        mode: 'list',
-        eyebrow: 'Kundenfavoriten',
-        title: 'Favoriten geöffnet',
-        description:
-          'Der Favoriten-Knoten bündelt bis zu sechs konkrete Kundeninstanzen für Groomer und Admins. Die Suche und die Favoritenverwaltung sind für die Rolle Kund:in ausgeblendet.',
-        node,
-      });
-      return;
-    }
-
     if (node.id === 'appointments') {
       this.openDailyAgendaWorkPage(node, selection.sourceOrigin);
       this.workspacePanel.set({
@@ -316,14 +357,20 @@ export class Dashboard implements OnInit {
 
       if (customer) {
         this.selectedCustomer.set(customer);
-        this.openCustomerProfileReadPage(customer, node, selection.sourceOrigin, 'Zum Kunden-Knoten');
+        this.openCustomerProfileReadPage(
+          customer,
+          node,
+          selection.sourceOrigin,
+          'Zum Kunden-Knoten',
+        );
       }
 
       this.workspacePanel.set({
         mode: 'profile',
         eyebrow: 'Kundenprofil',
         title: `${customer ? customerDisplayName(customer) : 'Kunde'} ansehen`,
-        description: 'Das Profil ist zunächst als klarer Lesemodus geöffnet. Bearbeiten bleibt bewusst eine spätere Aktion.',
+        description:
+          'Das Profil ist zunächst als klarer Lesemodus geöffnet. Bearbeiten bleibt bewusst eine spätere Aktion.',
         node,
       });
       return;
@@ -361,7 +408,8 @@ export class Dashboard implements OnInit {
         mode: 'overview',
         eyebrow: 'Kunden',
         title: 'Kundenknoten gelöst',
-        description: 'Der konkrete Kunde wurde nur aus dem Arbeitsgraphen entfernt. Die Domäne und ihre Aktionen bleiben bestehen.',
+        description:
+          'Der konkrete Kunde wurde nur aus dem Arbeitsgraphen entfernt. Die Domäne und ihre Aktionen bleiben bestehen.',
         node,
       });
       return;
@@ -372,7 +420,12 @@ export class Dashboard implements OnInit {
 
       if (customer) {
         this.selectedCustomer.set(customer);
-        this.openCustomerProfileReadPage(customer, node, selection.sourceOrigin, 'Zum Favoriten-Knoten');
+        this.openCustomerProfileReadPage(
+          customer,
+          node,
+          selection.sourceOrigin,
+          'Zum Favoriten-Knoten',
+        );
       }
 
       this.workspacePanel.set({
@@ -406,44 +459,48 @@ export class Dashboard implements OnInit {
     this.customerCreateBusy.set(true);
     this.customerCreateError.set('');
     this.updateActiveWorkPageState({ busy: true, error: '' });
-    this.http.post<CustomerDto>(`${runtimeConfig.apiBaseUrl}/customers`, { displayName: name }).subscribe({
-      next: (createdCustomer) => {
-        const customer = this.customerInstanceFromDto(createdCustomer);
+    this.http
+      .post<CustomerDto>(`${runtimeConfig.apiBaseUrl}/customers`, { displayName: name })
+      .subscribe({
+        next: (createdCustomer) => {
+          const customer = this.customerInstanceFromDto(createdCustomer);
 
-        this.selectedCustomer.set(customer);
-        this.pinFavoriteCustomerLocally(customer);
-        this.expandNode('customers');
-        this.expandNode('customer-favorites');
-        this.expandNode(customer.id);
-        this.newCustomerName.set('');
-        this.activeNodeId.set(customer.id);
-        this.focusNodeAfterWorkPageClose = customer.id;
-        this.workspacePanel.set({
-          mode: 'selected',
-          eyebrow: 'Kundeninstanz',
-          title: `${customerDisplayName(customer)} angeheftet`,
-          description:
-            'Der neue Kunde wurde als konkreter Instanzknoten mit Profil-, Löschen- und Entfernen-Aktionen an den Kundenknoten gehängt.',
-        });
-        this.activeWorkPage.set(null);
-        setTimeout(() => this.focusWorkspaceNode(customer.id), 250);
-      },
-      error: () => {
-        this.customerCreateError.set('Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.');
-        this.customerCreateBusy.set(false);
-        this.activeNodeId.set('customer-add');
-        this.updateActiveWorkPageState({
-          busy: false,
-          error: 'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
-        });
-      },
-      complete: () => {
-        this.customerCreateBusy.set(false);
-        if (!this.customerCreateError()) {
-          this.updateActiveWorkPageState({ busy: false });
-        }
-      },
-    });
+          this.selectedCustomer.set(customer);
+          this.pinFavoriteCustomerLocally(customer);
+          this.expandNode('customers');
+          this.expandNode('customer-favorites');
+          this.expandNode(customer.id);
+          this.newCustomerName.set('');
+          this.activeNodeId.set(customer.id);
+          this.focusNodeAfterWorkPageClose = customer.id;
+          this.workspacePanel.set({
+            mode: 'selected',
+            eyebrow: 'Kundeninstanz',
+            title: `${customerDisplayName(customer)} angeheftet`,
+            description:
+              'Der neue Kunde wurde als konkreter Instanzknoten mit Profil-, Löschen- und Entfernen-Aktionen an den Kundenknoten gehängt.',
+          });
+          this.activeWorkPage.set(null);
+          setTimeout(() => this.focusWorkspaceNode(customer.id), 250);
+        },
+        error: () => {
+          this.customerCreateError.set(
+            'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
+          );
+          this.customerCreateBusy.set(false);
+          this.activeNodeId.set('customer-add');
+          this.updateActiveWorkPageState({
+            busy: false,
+            error: 'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
+          });
+        },
+        complete: () => {
+          this.customerCreateBusy.set(false);
+          if (!this.customerCreateError()) {
+            this.updateActiveWorkPageState({ busy: false });
+          }
+        },
+      });
   }
 
   protected deleteSelectedCustomer(): void {
@@ -500,16 +557,25 @@ export class Dashboard implements OnInit {
     this.selectedCustomer.set(customerInstance);
     this.expandNode('customers');
     this.activeNodeId.set(customer.id);
-    this.openCustomerProfileReadPage(customerInstance, this.activeWorkPageSourceNode(), undefined, 'Schließen');
+    this.openCustomerProfileReadPage(
+      customerInstance,
+      this.activeWorkPageSourceNode(),
+      undefined,
+      'Schließen',
+    );
     this.workspacePanel.set({
       mode: 'profile',
       eyebrow: 'Kundensuche',
       title: `${customer.name} im Lesemodus`,
-      description: 'Der gefundene Kunde wurde ohne globalen Favoritenstatus geöffnet. Groomer/Admins können ihn persönlich anheften.',
+      description:
+        'Der gefundene Kunde wurde ohne globalen Favoritenstatus geöffnet. Groomer/Admins können ihn persönlich anheften.',
     });
   }
 
-  protected toggleFavoriteCustomer(customer: CustomerInstance | CustomerListItem, event?: Event): void {
+  protected toggleFavoriteCustomer(
+    customer: CustomerInstance | CustomerListItem,
+    event?: Event,
+  ): void {
     event?.stopPropagation();
     if (!this.canManageCustomers()) {
       return;
@@ -574,7 +640,9 @@ export class Dashboard implements OnInit {
       .subscribe({
         next: (customers) => {
           this.clearCustomerSearchBusyTimer();
-          this.customerSearchResults.set(customers.map((customer) => this.customerListItemFromDto(customer)));
+          this.customerSearchResults.set(
+            customers.map((customer) => this.customerListItemFromDto(customer)),
+          );
           this.updateActiveWorkPageState({ busy: false, error: '', empty: false });
         },
         error: () => {
@@ -604,12 +672,15 @@ export class Dashboard implements OnInit {
       mode: 'search',
       eyebrow: 'Kundensuche',
       title: 'Zur Kundensuche zurückgekehrt',
-      description: 'Du bist wieder in der Suche. Der zuvor geöffnete Kunde bleibt als Arbeitsknoten angeheftet.',
+      description:
+        'Du bist wieder in der Suche. Der zuvor geöffnete Kunde bleibt als Arbeitsknoten angeheftet.',
     });
   }
 
   protected customerInitials(customer: CustomerListItem): string {
-    return `${customer.firstName.charAt(0)}${customer.lastName.charAt(0)}`.toLocaleUpperCase('de-DE');
+    return `${customer.firstName.charAt(0)}${customer.lastName.charAt(0)}`.toLocaleUpperCase(
+      'de-DE',
+    );
   }
 
   protected handleWorkPagePrimaryAction(): void {
@@ -634,7 +705,8 @@ export class Dashboard implements OnInit {
       mode: 'overview',
       eyebrow: 'Arbeitsgraph',
       title: 'Work-Page geschlossen',
-      description: 'Die runde Work-Page wurde geschlossen. Der Graph bleibt der zentrale Arbeitskontext.',
+      description:
+        'Die runde Work-Page wurde geschlossen. Der Graph bleibt der zentrale Arbeitskontext.',
     });
   }
 
@@ -655,7 +727,9 @@ export class Dashboard implements OnInit {
   }
 
   protected expandEntireGraph(): void {
-    this.expandedNodeIds.set(new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole())));
+    this.expandedNodeIds.set(
+      new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole())),
+    );
   }
 
   protected collapseEntireGraph(): void {
@@ -663,7 +737,13 @@ export class Dashboard implements OnInit {
   }
 
   private toggleEntireGraph(): void {
-    if (isDashboardGraphFullyExpanded(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole())) {
+    if (
+      isDashboardGraphFullyExpanded(
+        this.favoriteCustomers(),
+        this.expandedNodeIds(),
+        this.graphRole(),
+      )
+    ) {
       this.collapseEntireGraph();
       return;
     }
@@ -701,8 +781,14 @@ export class Dashboard implements OnInit {
   }
 
   private activeNodeAncestorIds(): string[] {
-    const expandedNodeIds = new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()));
-    const edges = buildDashboardGraphEdges(this.favoriteCustomers(), expandedNodeIds, this.graphRole());
+    const expandedNodeIds = new Set(
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+    );
+    const edges = buildDashboardGraphEdges(
+      this.favoriteCustomers(),
+      expandedNodeIds,
+      this.graphRole(),
+    );
     const ancestors: string[] = [];
     let currentNodeId = this.activeNodeId();
 
@@ -844,44 +930,59 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    this.http.get<CustomerFavoriteDto[]>(`${runtimeConfig.apiBaseUrl}/customer-favorites`).subscribe({
-      next: (favorites) => this.favoriteCustomers.set(favorites.map((favorite) => this.customerFavoriteFromDto(favorite))),
-      error: () =>
-        this.favoriteStatusMessage.set(
-          'Favoriten konnten nicht geladen werden. Die Suche bleibt nutzbar, Anheften kann fehlschlagen.',
-        ),
-    });
+    this.http
+      .get<CustomerFavoriteDto[]>(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
+      .subscribe({
+        next: (favorites) =>
+          this.favoriteCustomers.set(
+            favorites.map((favorite) => this.customerFavoriteFromDto(favorite)),
+          ),
+        error: () =>
+          this.favoriteStatusMessage.set(
+            'Favoriten konnten nicht geladen werden. Die Suche bleibt nutzbar, Anheften kann fehlschlagen.',
+          ),
+      });
   }
 
   private pinFavoriteCustomer(customer: CustomerInstance): void {
     this.setFavoriteOperationBusy(customer.id, true);
     this.favoriteStatusMessage.set('');
-    this.http.post<CustomerFavoriteDto>(`${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`, {}).subscribe({
-      next: (favorite) => {
-        const pinnedCustomer = { ...customer, ...this.customerFavoriteFromDto(favorite) };
+    this.http
+      .post<CustomerFavoriteDto>(
+        `${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`,
+        {},
+      )
+      .subscribe({
+        next: (favorite) => {
+          const pinnedCustomer = { ...customer, ...this.customerFavoriteFromDto(favorite) };
 
-        this.pinFavoriteCustomerLocally(pinnedCustomer);
-        this.selectedCustomer.update((selectedCustomer) =>
-          selectedCustomer?.id === pinnedCustomer.id ? { ...selectedCustomer, ...pinnedCustomer } : selectedCustomer,
-        );
-        this.expandNode('customers');
-        this.expandNode('customer-favorites');
-        this.activeNodeId.set(pinnedCustomer.id);
-        this.focusNodeAfterWorkPageClose = pinnedCustomer.id;
-        this.favoriteStatusMessage.set(`${customerDisplayName(pinnedCustomer)} ist jetzt dein persönlicher Favorit.`);
-        this.workspacePanel.set({
-          mode: 'selected',
-          eyebrow: 'Kundenfavorit',
-          title: `${customerDisplayName(pinnedCustomer)} angeheftet`,
-          description: 'Der Favoritenstatus kommt aus deiner persönlichen Favoritenliste und ist nicht global am Kunden gespeichert.',
-        });
-      },
-      error: (error: HttpErrorResponse) => {
-        this.handleFavoriteError(error);
-        this.setFavoriteOperationBusy(customer.id, false);
-      },
-      complete: () => this.setFavoriteOperationBusy(customer.id, false),
-    });
+          this.pinFavoriteCustomerLocally(pinnedCustomer);
+          this.selectedCustomer.update((selectedCustomer) =>
+            selectedCustomer?.id === pinnedCustomer.id
+              ? { ...selectedCustomer, ...pinnedCustomer }
+              : selectedCustomer,
+          );
+          this.expandNode('customers');
+          this.expandNode('customer-favorites');
+          this.activeNodeId.set(pinnedCustomer.id);
+          this.focusNodeAfterWorkPageClose = pinnedCustomer.id;
+          this.favoriteStatusMessage.set(
+            `${customerDisplayName(pinnedCustomer)} ist jetzt dein persönlicher Favorit.`,
+          );
+          this.workspacePanel.set({
+            mode: 'selected',
+            eyebrow: 'Kundenfavorit',
+            title: `${customerDisplayName(pinnedCustomer)} angeheftet`,
+            description:
+              'Der Favoritenstatus kommt aus deiner persönlichen Favoritenliste und ist nicht global am Kunden gespeichert.',
+          });
+        },
+        error: (error: HttpErrorResponse) => {
+          this.handleFavoriteError(error);
+          this.setFavoriteOperationBusy(customer.id, false);
+        },
+        complete: () => this.setFavoriteOperationBusy(customer.id, false),
+      });
   }
 
   private removeFavoriteCustomer(customer: CustomerInstance | null): void {
@@ -891,17 +992,25 @@ export class Dashboard implements OnInit {
 
     this.setFavoriteOperationBusy(customer.id, true);
     this.favoriteStatusMessage.set('');
-    this.http.delete<void>(`${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`).subscribe({
-      next: () => {
-        this.favoriteCustomers.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
-        this.favoriteStatusMessage.set(`${customerDisplayName(customer)} wurde aus deinen persönlichen Favoriten entfernt.`);
-      },
-      error: () => {
-        this.favoriteStatusMessage.set('Favorit konnte nicht entfernt werden. Bitte versuche es erneut.');
-        this.setFavoriteOperationBusy(customer.id, false);
-      },
-      complete: () => this.setFavoriteOperationBusy(customer.id, false),
-    });
+    this.http
+      .delete<void>(`${runtimeConfig.apiBaseUrl}/customer-favorites/${customer.id}`)
+      .subscribe({
+        next: () => {
+          this.favoriteCustomers.update((customers) =>
+            customers.filter((candidate) => candidate.id !== customer.id),
+          );
+          this.favoriteStatusMessage.set(
+            `${customerDisplayName(customer)} wurde aus deinen persönlichen Favoriten entfernt.`,
+          );
+        },
+        error: () => {
+          this.favoriteStatusMessage.set(
+            'Favorit konnte nicht entfernt werden. Bitte versuche es erneut.',
+          );
+          this.setFavoriteOperationBusy(customer.id, false);
+        },
+        complete: () => this.setFavoriteOperationBusy(customer.id, false),
+      });
   }
 
   private pinFavoriteCustomerLocally(customer: CustomerInstance): void {
@@ -920,7 +1029,9 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    this.favoriteStatusMessage.set('Favorit konnte nicht angeheftet werden. Bitte versuche es erneut.');
+    this.favoriteStatusMessage.set(
+      'Favorit konnte nicht angeheftet werden. Bitte versuche es erneut.',
+    );
   }
 
   private setFavoriteOperationBusy(customerId: string, busy: boolean): void {
@@ -937,7 +1048,9 @@ export class Dashboard implements OnInit {
     });
   }
 
-  private updateActiveWorkPageState(state: Partial<Pick<WorkspaceWorkPage, 'busy' | 'error' | 'empty'>>): void {
+  private updateActiveWorkPageState(
+    state: Partial<Pick<WorkspaceWorkPage, 'busy' | 'error' | 'empty'>>,
+  ): void {
     this.activeWorkPage.update((workPage) => (workPage ? { ...workPage, ...state } : workPage));
   }
 
@@ -972,11 +1085,16 @@ export class Dashboard implements OnInit {
       meta: this.blankToUndefined(customer.communicationNotes) ?? 'Kontaktprofil',
       status: 'Kund:in',
       note: this.blankToUndefined(customer.communicationNotes),
-      avatarUrl: customer.profileImageBase64 ? `data:image/*;base64,${customer.profileImageBase64}` : undefined,
+      avatarUrl: customer.profileImageBase64
+        ? `data:image/*;base64,${customer.profileImageBase64}`
+        : undefined,
     };
   }
 
-  private customerNameParts(customer: CustomerDto | CustomerFavoriteDto): { firstName: string; lastName: string } {
+  private customerNameParts(customer: CustomerDto | CustomerFavoriteDto): {
+    firstName: string;
+    lastName: string;
+  } {
     const explicitFirstName = this.blankToUndefined(customer.firstName);
     const explicitLastName = this.blankToUndefined(customer.lastName);
 
@@ -1008,11 +1126,15 @@ export class Dashboard implements OnInit {
       meta: this.blankToUndefined(favorite.communicationNotes),
       status: 'Kund:in',
       note: this.blankToUndefined(favorite.communicationNotes),
-      avatarUrl: favorite.profileImageBase64 ? `data:image/*;base64,${favorite.profileImageBase64}` : undefined,
+      avatarUrl: favorite.profileImageBase64
+        ? `data:image/*;base64,${favorite.profileImageBase64}`
+        : undefined,
     };
   }
 
-  private customerInstanceFromCustomer(customer: CustomerInstance | CustomerListItem): CustomerInstance {
+  private customerInstanceFromCustomer(
+    customer: CustomerInstance | CustomerListItem,
+  ): CustomerInstance {
     return {
       id: customer.id,
       firstName: customer.firstName,
@@ -1047,7 +1169,10 @@ export class Dashboard implements OnInit {
     );
   }
 
-  private openCustomerCreateWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
+  private openCustomerCreateWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1055,14 +1180,19 @@ export class Dashboard implements OnInit {
       sourceOrigin,
       contentType: 'form',
       title: 'Kunden hinzufügen',
-      description: 'Lege einen ersten Kundenknoten an. Der Inhalt ist austauschbar, die runde Shell bleibt wiederverwendbar.',
+      description:
+        'Lege einen ersten Kundenknoten an. Der Inhalt ist austauschbar, die runde Shell bleibt wiederverwendbar.',
       originLabel: `aus Knoten ${node.label}`,
       primaryActionLabel: 'Speichern',
       secondaryActionLabel: 'Abbrechen',
     });
   }
 
-  private openCustomerSearchWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined, resetSearchTerm = true): void {
+  private openCustomerSearchWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+    resetSearchTerm = true,
+  ): void {
     if (!this.canManageCustomers()) {
       return;
     }
@@ -1101,7 +1231,8 @@ export class Dashboard implements OnInit {
       sourceOrigin,
       contentType: 'detail',
       title: `${customerDisplayName(customer)} Profil`,
-      description: 'Lesemodus: Stammdaten und verfügbare Kontaktinformationen, ohne direkte Bearbeitung.',
+      description:
+        'Lesemodus: Stammdaten und verfügbare Kontaktinformationen, ohne direkte Bearbeitung.',
       originLabel: `aus Knoten ${sourceNode.label}`,
       primaryActionLabel: '',
       secondaryActionLabel,
@@ -1143,34 +1274,23 @@ export class Dashboard implements OnInit {
   }
 
   private focusCustomerSearchField(): void {
-    setTimeout(() => this.hostElement.nativeElement.querySelector<HTMLElement>('#workPageCustomerSearch')?.focus());
+    setTimeout(() =>
+      this.hostElement.nativeElement.querySelector<HTMLElement>('#workPageCustomerSearch')?.focus(),
+    );
   }
 
   private focusCustomerProfileRegion(): void {
-    setTimeout(() => this.hostElement.nativeElement.querySelector<HTMLElement>('#customerProfileReadMode')?.focus());
+    setTimeout(() =>
+      this.hostElement.nativeElement
+        .querySelector<HTMLElement>('#customerProfileReadMode')
+        ?.focus(),
+    );
   }
 
-  private openCustomerListWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
-    const isFavoritesNode = node.id === 'customer-favorites';
-
-    this.focusNodeAfterWorkPageClose = node.id;
-    this.activeWorkPage.set({
-      sourceNodeId: node.id,
-      sourceLabel: node.label,
-      sourceOrigin,
-      contentType: 'list',
-      title: isFavoritesNode ? 'Kundenfavoriten' : 'Kundenliste',
-      description: isFavoritesNode
-        ? 'Bis zu sechs favorisierte Kund:innen sind als Instanzknoten direkt am Favoriten-Knoten sichtbar.'
-        : 'Wähle eine Kund:in aus, um sie im Arbeitsgraphen weiterzubearbeiten.',
-      originLabel: isFavoritesNode ? 'aus Knoten Favoriten' : 'aus Knoten Kund:innen',
-      primaryActionLabel: '',
-      secondaryActionLabel: 'Schließen',
-      empty: this.favoriteCustomers().length === 0,
-    });
-  }
-
-  private openDailyAgendaWorkPage(node: WorkspaceGraphNode, sourceOrigin: CircularWorkPageOrigin | undefined): void {
+  private openDailyAgendaWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
     this.focusNodeAfterWorkPageClose = node.id;
     this.activeWorkPage.set({
       sourceNodeId: node.id,
@@ -1178,7 +1298,8 @@ export class Dashboard implements OnInit {
       sourceOrigin,
       contentType: 'calendar',
       title: 'Tagesplanung',
-      description: 'Überblick über die heutigen Termine als scrollbare Agenda. Noch ohne echte Kalenderlogik.',
+      description:
+        'Überblick über die heutigen Termine als scrollbare Agenda. Noch ohne echte Kalenderlogik.',
       originLabel: 'aus Knoten Kalender',
       primaryActionLabel: '',
       secondaryActionLabel: 'Schließen',
@@ -1213,9 +1334,15 @@ export class Dashboard implements OnInit {
   }
 
   private removeDeletedCustomerLocally(customer: CustomerInstance): void {
-    this.favoriteCustomers.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
-    this.customerSearchResults.update((customers) => customers.filter((candidate) => candidate.id !== customer.id));
-    this.selectedCustomer.update((selectedCustomer) => (selectedCustomer?.id === customer.id ? null : selectedCustomer));
+    this.favoriteCustomers.update((customers) =>
+      customers.filter((candidate) => candidate.id !== customer.id),
+    );
+    this.customerSearchResults.update((customers) =>
+      customers.filter((candidate) => candidate.id !== customer.id),
+    );
+    this.selectedCustomer.update((selectedCustomer) =>
+      selectedCustomer?.id === customer.id ? null : selectedCustomer,
+    );
     this.expandedNodeIds.update((current) => {
       const next = new Set(current);
 
@@ -1241,6 +1368,8 @@ export class Dashboard implements OnInit {
   }
 
   private focusWorkspaceNode(nodeId: string): void {
-    this.workspaceGraphElement?.nativeElement.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)?.focus();
+    this.workspaceGraphElement?.nativeElement
+      .querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)
+      ?.focus();
   }
 }

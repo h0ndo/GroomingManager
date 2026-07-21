@@ -231,7 +231,9 @@
 
 .workspace-graph__node--active {
   border-color: #16a34a;
-  box-shadow: 0 0 0 5px rgb(22 163 74 / 15%), 0 18px 45px rgb(22 163 74 / 22%);
+  box-shadow:
+    0 0 0 5px rgb(22 163 74 / 15%),
+    0 18px 45px rgb(22 163 74 / 22%);
 }
 
 .workspace-graph__node--root {
@@ -268,6 +270,15 @@
   border-color: #fed7aa;
 }
 
+.workspace-graph__node--instance .workspace-graph__icon {
+  font-size: 2.15rem;
+}
+
+.workspace-graph__node--avatar {
+  overflow: hidden;
+  padding: 0;
+}
+
 .workspace-graph__icon {
   font-size: 1.2rem;
 }
@@ -279,11 +290,14 @@
 }
 
 .workspace-graph__avatar {
-  border: 2px solid #fed7aa;
+  border: 0;
   border-radius: 999px;
-  height: 2rem;
+  height: 100%;
+  inset: 0;
   object-fit: cover;
-  width: 2rem;
+  position: absolute;
+  width: 100%;
+  z-index: 0;
 }
 
 .workspace-graph__logo {
@@ -301,6 +315,23 @@
   line-height: 1.1;
   max-width: 4.8rem;
   overflow-wrap: anywhere;
+  position: relative;
+  z-index: 1;
+}
+
+.workspace-graph__node--avatar .workspace-graph__label {
+  align-self: stretch;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgb(15 23 42 / 78%) 30%,
+    rgb(15 23 42 / 90%) 100%
+  );
+  color: #fff;
+  margin-block-start: auto;
+  max-width: none;
+  padding: 1.25rem 0.35rem 0.45rem;
 }
 
 .workspace-graph__label--sr-only {
@@ -451,7 +482,6 @@
   }
 }
 
-
 @keyframes node-spawn {
   0% {
     opacity: 0;
@@ -470,6 +500,3 @@
     translate: -50% -50%;
   }
 }
-
-
-
