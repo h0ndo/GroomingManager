@@ -446,6 +446,10 @@ export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolea
   );
 }
 
+export function isDashboardGraphWorkFocusNode(node: WorkspaceGraphNode): boolean {
+  return !isFunctionalDashboardGraphNode(node);
+}
+
 export function expandableDashboardGraphNodeIds(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',

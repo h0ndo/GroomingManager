@@ -27,6 +27,7 @@ import {
   expandableDashboardGraphNodeIds,
   hasDashboardGraphChildren,
   isDashboardGraphFullyExpanded,
+  isDashboardGraphWorkFocusNode,
   isFunctionalDashboardGraphNode,
   isTopLevelDashboardGraphNode,
   type DashboardGraphRole,
@@ -332,8 +333,11 @@ export class Dashboard implements OnInit {
       this.graphRole(),
     );
     const isStructuralNode = hasChildren && !isFunctionalDashboardGraphNode(node);
+    const canBecomeWorkFocus = this.canBecomeActiveWorkFocus(node);
 
-    this.activeNodeId.set(node.id);
+    if (canBecomeWorkFocus) {
+      this.activeNodeId.set(node.id);
+    }
 
     if (isTopLevelDashboardGraphNode(node.id)) {
       this.collapseOtherTopLevelSubtrees(node.id);
@@ -541,7 +545,7 @@ export class Dashboard implements OnInit {
             'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
           );
           this.customerCreateBusy.set(false);
-          this.activeNodeId.set('customer-add');
+          this.activeNodeId.set(this.focusableContextNodeIdForNodeId('customer-add'));
           this.updateActiveWorkPageState({
             busy: false,
             error: 'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
@@ -719,7 +723,7 @@ export class Dashboard implements OnInit {
       kind: sourceNodeId === 'customers' ? 'domain' : 'action',
     };
 
-    this.activeNodeId.set(sourceNodeId);
+    this.activeNodeId.set(this.focusableContextNodeIdForNodeId(sourceNodeId));
     this.openCustomerSearchWorkPage(sourceNode, undefined, false);
     this.focusCustomerSearchField();
     this.workspacePanel.set({
@@ -853,11 +857,12 @@ export class Dashboard implements OnInit {
 
   protected cancelActiveWorkPage(): void {
     const sourceNodeId = this.activeWorkPage()?.sourceNodeId ?? this.activeNodeId();
+    const focusNodeId = this.focusNodeAfterWorkPageClose ?? this.focusableContextNodeIdForNodeId(sourceNodeId);
 
     this.newCustomerName.set('');
     this.customerSearchTerm.set('');
-    this.activeNodeId.set(sourceNodeId);
-    this.focusNodeAfterWorkPageClose = sourceNodeId;
+    this.activeNodeId.set(focusNodeId);
+    this.focusNodeAfterWorkPageClose = focusNodeId;
     this.workspacePanel.set({
       mode: 'overview',
       eyebrow: 'Arbeitsgraph',
@@ -956,6 +961,41 @@ export class Dashboard implements OnInit {
 
   private activeNodeAncestorIds(): string[] {
     return this.dashboardGraphAncestorIdsForNode(this.activeNodeId());
+  }
+
+  private canBecomeActiveWorkFocus(node: WorkspaceGraphNode): boolean {
+    return this.layoutMode() !== 'focused-work' || isDashboardGraphWorkFocusNode(node);
+  }
+
+  private focusableContextNodeIdForNodeId(nodeId: string): string {
+    const node = this.dashboardGraphNodeById(nodeId);
+
+    if (node && isDashboardGraphWorkFocusNode(node)) {
+      return node.id;
+    }
+
+    const contextNodeId = this.dashboardGraphAncestorIdsForNode(nodeId)
+      .filter((ancestorNodeId) => ancestorNodeId !== 'start')
+      .find((ancestorNodeId) => {
+        const ancestorNode = this.dashboardGraphNodeById(ancestorNodeId);
+
+        return ancestorNode ? isDashboardGraphWorkFocusNode(ancestorNode) : true;
+      });
+
+    return contextNodeId ?? this.activeNodeId();
+  }
+
+  private dashboardGraphNodeById(nodeId: string): WorkspaceGraphNode | undefined {
+    const expandedNodeIds = new Set(
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+    );
+
+    return buildDashboardGraphNodes(
+      this.favoriteCustomers(),
+      expandedNodeIds,
+      this.focusedTopLevelNodeId(),
+      this.graphRole(),
+    ).find((node) => node.id === nodeId);
   }
 
   private dashboardGraphAncestorIdsForNode(nodeId: string): string[] {
@@ -1417,7 +1457,7 @@ export class Dashboard implements OnInit {
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.lockGraphPresentationForWorkPage();
-    this.focusNodeAfterWorkPageClose = node.id;
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
     this.activeWorkPage.set({
       sourceNodeId: node.id,
       sourceLabel: node.label,
@@ -1449,7 +1489,7 @@ export class Dashboard implements OnInit {
     }
     this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.lockGraphPresentationForWorkPage();
-    this.focusNodeAfterWorkPageClose = node.id;
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
     this.activeWorkPage.set({
       sourceNodeId: node.id,
       sourceLabel: node.label,
@@ -1495,7 +1535,7 @@ export class Dashboard implements OnInit {
     this.lockGraphPresentationForWorkPage();
     this.customerDeleteBusy.set(false);
     this.customerDeleteError.set('');
-    this.focusNodeAfterWorkPageClose = sourceNode.id;
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(sourceNode.id);
     this.activeWorkPage.set({
       sourceNodeId: sourceNode.id,
       sourceLabel: sourceNode.label,
@@ -1541,7 +1581,7 @@ export class Dashboard implements OnInit {
   ): void {
     this.pruneExpandedNodeIdsForWorkPage(node.id);
     this.lockGraphPresentationForWorkPage();
-    this.focusNodeAfterWorkPageClose = node.id;
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
     this.activeWorkPage.set({
       sourceNodeId: node.id,
       sourceLabel: node.label,

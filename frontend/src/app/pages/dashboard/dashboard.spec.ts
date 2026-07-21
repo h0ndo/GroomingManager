@@ -484,10 +484,55 @@ describe('Dashboard', () => {
       '#workPageCustomerSearch',
     );
 
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Suchen');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Suchen').getAttribute('aria-current')).toBeNull();
+    expect(graphNodeButton(fixture, 'Suchen').getAttribute('aria-label')).not.toContain(
+      'Aktiver Arbeitsknoten',
+    );
     expect(dialog?.textContent).toContain('Kundensuche');
     expect(searchInput).not.toBeNull();
     expect(document.activeElement).toBe(searchInput);
+  }));
+
+  it('opens action nodes with keyboard without making them the focused-work focus', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    fixture.detectChanges();
+
+    expandCustomersNode(fixture);
+    graphNodeButton(fixture, 'Suchen').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')?.textContent).toContain(
+      'Kundensuche',
+    );
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Suchen').getAttribute('aria-current')).toBeNull();
+
+    closeActiveWorkPage(fixture);
+
+    graphNodeButton(fixture, 'Hinzufügen').dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')?.textContent).toContain(
+      'Kunden hinzufügen',
+    );
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Hinzufügen').getAttribute('aria-current')).toBeNull();
   }));
 
   it('loads customer search results from the backend with one extra row for overflow detection', fakeAsync(() => {
@@ -875,7 +920,8 @@ describe('Dashboard', () => {
         .querySelector('app-workspace-graph')
         ?.hasAttribute('inert'),
     ).toBeFalse();
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hinzufügen');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Hinzufügen').getAttribute('aria-current')).toBeNull();
     expect(document.activeElement).toBe(activeGraphNodeButton(fixture));
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
       'Mila Muster angeheftet',
@@ -1024,7 +1070,8 @@ describe('Dashboard', () => {
       'Kunde konnte nicht gespeichert werden. Bitte versuche es erneut.',
     );
     expect(graphNodeLabels(fixture)).not.toContain('Mila Muster');
-    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hinzufügen');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');
+    expect(graphNodeButton(fixture, 'Hinzufügen').getAttribute('aria-current')).toBeNull();
     expect(buttonByText(fixture, 'Speichern').disabled).toBeFalse();
 
     buttonByText(fixture, 'Speichern').click();
@@ -1348,6 +1395,7 @@ describe('Dashboard', () => {
 
     const profileActionButton = graphNodeButton(fixture, 'Profil');
     expect(profileActionButton.getAttribute('aria-label')).toContain('Profil, Aktion');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Katja Gross');
 
     profileActionButton.click();
     fixture.detectChanges();
@@ -1359,6 +1407,11 @@ describe('Dashboard', () => {
     const profile = host.querySelector<HTMLElement>('#customerProfileReadMode');
 
     expect(dialog?.textContent).toContain('Katja Gross Profil');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Katja Gross');
+    expect(graphNodeButton(fixture, 'Profil').getAttribute('aria-current')).toBeNull();
+    expect(graphNodeButton(fixture, 'Profil').getAttribute('aria-label')).not.toContain(
+      'Aktiver Arbeitsknoten',
+    );
     expect(dialog?.textContent).not.toContain('Lesemodus · keine direkte Bearbeitung');
     expect(dialog?.querySelector('.customer-profile-read__mode')).toBeNull();
     expect(dialog?.querySelector('.customer-profile-read__favorite-state')).toBeNull();
@@ -1489,6 +1542,9 @@ describe('Dashboard', () => {
     fixture.detectChanges();
     tick();
     fixture.detectChanges();
+
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Katja Gross');
+    expect(graphNodeButton(fixture, 'Löschen').getAttribute('aria-current')).toBeNull();
 
     const confirmationDialog = (fixture.nativeElement as HTMLElement).querySelector(
       '[role="dialog"]',
