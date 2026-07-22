@@ -163,9 +163,13 @@
               <div class="customer-list-work-page" aria-label="Kundenliste mit 30er-Paginierung">
                 <p-table
                   class="customer-list-table"
+                  styleClass="customer-list-table customer-list-table--compact"
+                  size="small"
                   [value]="customerListItems()"
                   [paginator]="true"
                   [rows]="customerListPageSize"
+                  [scrollable]="true"
+                  scrollHeight="flex"
                   paginatorPosition="bottom"
                   [alwaysShowPaginator]="true"
                   [showCurrentPageReport]="true"

@@ -546,15 +546,30 @@ describe('Dashboard', () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const dialog = host.querySelector('[role="dialog"]');
-    const table = host.querySelector('p-table.customer-list-table');
+    const circularWorkPage = host.querySelector('app-circular-work-page');
+    const tableHost = host.querySelector('p-table.customer-list-table');
+    const table = host.querySelector('.customer-list-table--compact');
     const headers = Array.from(
       host.querySelectorAll<HTMLTableCellElement>('.customer-list-table thead th'),
     ).map((header) => normalizeText(header.textContent));
 
+    expect(circularWorkPage).not.toBeNull();
     expect(dialog?.textContent).toContain('Kundenliste');
+    expect(dialog?.classList).toContain('circular-work-page__dialog--list');
+    expect(tableHost).not.toBeNull();
     expect(table).not.toBeNull();
+    expect(tableHost?.getAttribute('size')).toBe('small');
     expect(headers).toEqual(['Vorname', 'Nachname', 'E-Mail', 'Telefonnummer']);
     expect(customerListTableRows(fixture)).toHaveSize(30);
+    const firstDataCell = customerListTableRows(fixture)[0].querySelector<HTMLTableCellElement>('td');
+    const firstDataCellStyle = getComputedStyle(firstDataCell!);
+
+    expect(firstDataCellStyle.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(firstDataCellStyle.color).toBe('rgb(0, 0, 0)');
+    expect(parseFloat(firstDataCellStyle.fontSize)).toBeLessThanOrEqual(12);
+    expect(parseFloat(firstDataCellStyle.paddingTop)).toBeLessThanOrEqual(2);
+    expect(firstDataCellStyle.borderLeftWidth).toBe('0px');
+    expect(firstDataCellStyle.borderRightWidth).toBe('0px');
     expect(dialog?.textContent).toContain('Vorname01');
     expect(dialog?.textContent).not.toContain('Vorname31');
     expect(dialog?.querySelector('.p-paginator')).not.toBeNull();
