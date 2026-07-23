@@ -383,6 +383,15 @@ export class Dashboard implements OnInit {
   );
   protected readonly hasActiveWorkPage = computed(() => this.activeWorkPage() !== null);
   protected readonly graphInteractionLocked = computed(() => this.hasActiveWorkPage());
+  private readonly focusedWorkCenteredNodeId = computed(() => {
+    const activeNodeId = this.activeNodeId();
+
+    if (this.dogContextDogs().some((dog) => dog.id === activeNodeId)) {
+      return 'dogs';
+    }
+
+    return activeNodeId;
+  });
   protected readonly presentedGraphNodes = computed(
     () => this.lockedGraphPresentation()?.nodes ?? this.graphNodes(),
   );
@@ -395,7 +404,7 @@ export class Dashboard implements OnInit {
   protected readonly presentedCenteredNodeId = computed(
     () =>
       this.lockedGraphPresentation()?.centeredNodeId ??
-      (this.layoutMode() === 'focused-work' ? this.activeNodeId() : ''),
+      (this.layoutMode() === 'focused-work' ? this.focusedWorkCenteredNodeId() : ''),
   );
   protected readonly presentedExpandedNodeIds = computed(
     () => this.lockedGraphPresentation()?.expandedNodeIds ?? this.expandedNodeIds(),

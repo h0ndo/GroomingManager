@@ -49,6 +49,21 @@ function graphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): H
   return button;
 }
 
+function graphNodePosition(fixture: ComponentFixture<Dashboard>, nodeId: string): { x: number; y: number } {
+  const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+    `[data-node-id="${nodeId}"]`,
+  );
+
+  if (!button) {
+    throw new Error(`Graph node with id "${nodeId}" not found`);
+  }
+
+  return {
+    x: Number.parseFloat(button.style.left),
+    y: Number.parseFloat(button.style.top),
+  };
+}
+
 function buttonByText(fixture: ComponentFixture<Dashboard>, label: string): HTMLButtonElement {
   const buttons = Array.from(
     fixture.nativeElement.querySelectorAll('button'),
@@ -933,6 +948,17 @@ describe('Dashboard', () => {
     );
     expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Nala Mila Muster');
     expect(host.textContent).toContain('Nala gehört zu Mila Muster');
+
+    const dogsPosition = graphNodePosition(fixture, 'dogs');
+    const dogSearchPosition = graphNodePosition(fixture, 'dog-search');
+    const dogListPosition = graphNodePosition(fixture, 'dog-list');
+    const dogAddPosition = graphNodePosition(fixture, 'dog-add');
+    const concreteDogPosition = graphNodePosition(fixture, 'dog:12');
+
+    expect(dogSearchPosition.y).toBeGreaterThan(120);
+    expect(dogListPosition.y).toBeGreaterThan(120);
+    expect(dogAddPosition.y).toBeGreaterThan(dogListPosition.y);
+    expect(concreteDogPosition.y).toBeGreaterThan(dogsPosition.y + 250);
   }));
 
   it('opens one dog creation flow from the Hunde action with required customer selection', fakeAsync(() => {
