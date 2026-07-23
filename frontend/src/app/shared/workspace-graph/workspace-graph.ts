@@ -383,7 +383,11 @@ export class WorkspaceGraph {
   }
 
   protected nodeAccessibleLabel(node: WorkspaceGraphNode): string {
-    return `${node.label}, ${this.nodeKindLabel(node)}. ${this.nodeStatusLabel(node)}. ${this.nodeRelationshipLabel(node)}. ${this.nodeActionHint(node)}.`;
+    return `${node.label}, ${this.nodeKindLabel(node)}. ${this.nodeStatusLabel(node)}. ${this.nodeDescriptionLabel(node)}. ${this.nodeRelationshipLabel(node)}. ${this.nodeActionHint(node)}.`;
+  }
+
+  protected nodeDescriptionLabel(node: WorkspaceGraphNode): string {
+    return node.description ? `Beschreibung: ${node.description}` : 'Keine Zusatzbeschreibung';
   }
 
   protected nodeKindLabel(node: WorkspaceGraphNode): string {

@@ -33,7 +33,9 @@ const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
 const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
 const DOG_CONTEXT_LIMIT = 6;
-const DOG_CONTEXT_NODE_DISTANCE = 190;
+const DOG_CONTEXT_NODE_DISTANCE = 260;
+const DOG_CONTEXT_START_ANGLE = 90;
+const DOG_CONTEXT_END_ANGLE = 210;
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
   'groomers',
@@ -60,9 +62,7 @@ function visibleTopLevelNodeIds(role: DashboardGraphRole): TopLevelNodeId[] {
     return [...TOP_LEVEL_NODE_IDS];
   }
 
-  return TOP_LEVEL_NODE_IDS.filter(
-    (nodeId) => nodeId !== CUSTOMER_FAVORITES_NODE_ID,
-  );
+  return TOP_LEVEL_NODE_IDS.filter((nodeId) => nodeId !== CUSTOMER_FAVORITES_NODE_ID);
 }
 
 const rootNode: WorkspaceGraphNode = {
@@ -356,7 +356,17 @@ function dogLabelLines(dog: DogInstance): string[] {
   return [truncateLabelLine(dog.name), truncateLabelLine(dog.customerLabel)];
 }
 
-function dogContextNode(dog: DogInstance): WorkspaceGraphNode {
+function dogContextAngle(index: number, count: number): number {
+  if (count <= 1) {
+    return 150;
+  }
+
+  const step = (DOG_CONTEXT_END_ANGLE - DOG_CONTEXT_START_ANGLE) / (count - 1);
+
+  return DOG_CONTEXT_START_ANGLE + index * step;
+}
+
+function dogContextNode(dog: DogInstance, index: number, count: number): WorkspaceGraphNode {
   return {
     id: dog.id,
     label: dog.name,
@@ -364,7 +374,7 @@ function dogContextNode(dog: DogInstance): WorkspaceGraphNode {
     kind: 'instance',
     x: 745,
     y: 640,
-    layout: { distance: DOG_CONTEXT_NODE_DISTANCE },
+    layout: { angle: dogContextAngle(index, count), distance: DOG_CONTEXT_NODE_DISTANCE },
     icon: 'pi-heart',
     avatarUrl: dog.avatarUrl,
     payload: dog,
@@ -564,12 +574,7 @@ export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolea
     return false;
   }
 
-  return (
-    !!node.route ||
-    !!node.action ||
-    node.kind === 'page' ||
-    node.kind === 'action'
-  );
+  return !!node.route || !!node.action || node.kind === 'page' || node.kind === 'action';
 }
 
 export function isDashboardGraphWorkFocusNode(node: WorkspaceGraphNode): boolean {
@@ -638,9 +643,7 @@ export function dashboardGraphSiblingSubtreeNodeIds(
 ): string[] {
   const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role, dogs));
   const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role, dogs);
-  const parentNodeIds = edges
-    .filter((edge) => edge.to === nodeId)
-    .map((edge) => edge.from);
+  const parentNodeIds = edges.filter((edge) => edge.to === nodeId).map((edge) => edge.from);
   const subtreeNodeIds = new Set<string>();
 
   parentNodeIds.forEach((parentNodeId) => {
@@ -692,7 +695,11 @@ export function buildDashboardGraphNodes(
   const isDogsVisible = canManageCustomerGraph(role) && expandedNodeIds.has('dogs');
 
   if (isDogsVisible) {
-    nodes.push(...visibleDogContexts.map((dog) => dogContextNode(dog)));
+    nodes.push(
+      ...visibleDogContexts.map((dog, index) =>
+        dogContextNode(dog, index, visibleDogContexts.length),
+      ),
+    );
   }
 
   visibleDogContexts.forEach((dog) => {

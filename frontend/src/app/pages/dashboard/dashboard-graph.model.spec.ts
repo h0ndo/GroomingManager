@@ -8,7 +8,9 @@ import {
   isDashboardGraphFullyExpanded,
   isFunctionalDashboardGraphNode,
   type CustomerInstance,
+  type DogInstance,
 } from './dashboard-graph.model';
+import { computeRadialGraphLayout } from '../../shared/workspace-graph/core/radial-graph-layout';
 
 const favoriteCustomers: CustomerInstance[] = [
   {
@@ -18,6 +20,11 @@ const favoriteCustomers: CustomerInstance[] = [
     avatarUrl: '/avatars/katja.png',
   },
   { id: 'customer-alex-sommer', firstName: 'Alex', lastName: 'Sommer' },
+];
+
+const visibleDogs: DogInstance[] = [
+  { id: 'dog-wau', name: 'wau', customerLabel: 'Katja Gross' },
+  { id: 'dog-kakkkkkk', name: 'kakkkkkk', customerLabel: 'Hans Wuest' },
 ];
 
 describe('dashboard graph model', () => {
@@ -172,7 +179,9 @@ describe('dashboard graph model', () => {
         payload: sevenCustomers[0],
       }),
     );
-    expect(isFunctionalDashboardGraphNode(nodes.find((node) => node.id === 'customer-1')!)).toBeFalse();
+    expect(
+      isFunctionalDashboardGraphNode(nodes.find((node) => node.id === 'customer-1')!),
+    ).toBeFalse();
     expect(edges).toEqual(
       jasmine.arrayContaining([{ from: 'customer-favorites', to: 'customer-1' }]),
     );
@@ -254,8 +263,11 @@ describe('dashboard graph model', () => {
         'customer-katja-gross-detach',
       ]),
     );
-    expect(buildDashboardGraphNodes(favoriteCustomers, staleExpandedNodeIds).map((node) => node.id))
-      .not.toEqual(jasmine.arrayContaining(['customer-katja-gross', 'customer-katja-gross-profile']));
+    expect(
+      buildDashboardGraphNodes(favoriteCustomers, staleExpandedNodeIds).map((node) => node.id),
+    ).not.toEqual(
+      jasmine.arrayContaining(['customer-katja-gross', 'customer-katja-gross-profile']),
+    );
     expect(buildDashboardGraphEdges(favoriteCustomers, staleExpandedNodeIds)).not.toEqual(
       jasmine.arrayContaining([
         { from: 'customer-favorites', to: 'customer-katja-gross' },
@@ -300,6 +312,44 @@ describe('dashboard graph model', () => {
     expect(customerNodes.map((node) => node.id)).not.toContain('dog-add');
     expect(hasDashboardGraphChildren('dogs', [], 'groomer')).toBeTrue();
     expect(hasDashboardGraphChildren('dogs', [], 'kunde')).toBeFalse();
+  });
+
+  it('separates concrete dog context nodes from Hunde action nodes in the radial layout', () => {
+    const expandedNodeIds = new Set(['dogs']);
+    const nodes = buildDashboardGraphNodes([], expandedNodeIds, 'dogs', 'groomer', visibleDogs);
+    const edges = buildDashboardGraphEdges([], expandedNodeIds, 'groomer', visibleDogs);
+    const layout = computeRadialGraphLayout(
+      nodes.map((node) => ({
+        id: node.id,
+        type: node.kind,
+        preferredAngle: node.layout?.angle,
+        preferredDistance: node.layout?.distance,
+      })),
+      edges,
+      {
+        rootId: 'start',
+        center: { x: 520, y: 340 },
+        levelDistance: 190,
+        siblingAngle: 32,
+        rootStartAngle: 0,
+      },
+    );
+    const dogAddPosition = layout.get('dog-add')!;
+    const dogContextPositions = visibleDogs.map((dog) => layout.get(dog.id)!);
+    const dogContextNodes = visibleDogs.map((dog) => nodes.find((node) => node.id === dog.id)!);
+
+    expect(nodes.find((node) => node.id === 'dog-search')?.layout?.angle).toBe(310);
+    expect(nodes.find((node) => node.id === 'dog-list')?.layout?.angle).toBe(0);
+    expect(nodes.find((node) => node.id === 'dog-add')?.layout?.angle).toBe(50);
+    expect(dogContextNodes.map((node) => node.layout?.angle)).toEqual([90, 210]);
+    expect(dogContextNodes.every((node) => node.layout?.distance === 260)).toBeTrue();
+    expect(dogContextNodes[0].labelLines).toEqual(['wau', 'Katja Gross']);
+    expect(dogContextNodes[1].labelLines).toEqual(['kakkkkkk', 'Hans Wuest']);
+    dogContextPositions.forEach((position) => {
+      expect(
+        Math.hypot(position.x - dogAddPosition.x, position.y - dogAddPosition.y),
+      ).toBeGreaterThan(150);
+    });
   });
 
   it('shows destructive customer delete action nodes only for admins', () => {
