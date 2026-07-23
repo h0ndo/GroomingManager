@@ -67,6 +67,11 @@ const DOG_CONTEXT_LAYOUTS_BY_COUNT: Record<number, { offset: number; distance: n
     { offset: 26, distance: 650 },
   ],
 };
+const TOP_LEVEL_DOMAIN_ACTION_LAYOUTS: { offset: number; distance: number }[] = [
+  { offset: 148, distance: 145 },
+  { offset: 180, distance: 135 },
+  { offset: 212, distance: 145 },
+];
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
   'groomers',
@@ -591,6 +596,35 @@ function withChildLayout(
   };
 }
 
+function withStandardTopLevelDomainActionLayouts(
+  parentNodeId: TopLevelNodeId,
+  nodes: WorkspaceGraphNode[],
+): WorkspaceGraphNode[] {
+  let actionIndex = 0;
+
+  return nodes.map((node) => {
+    if (node.kind !== 'action') {
+      return node;
+    }
+
+    const actionLayout = TOP_LEVEL_DOMAIN_ACTION_LAYOUTS[actionIndex];
+    actionIndex += 1;
+
+    if (!actionLayout) {
+      return node;
+    }
+
+    return {
+      ...node,
+      layout: {
+        ...node.layout,
+        angle: normalizeAngle((TOP_LEVEL_BASE_ANGLES.get(parentNodeId) ?? 0) + actionLayout.offset),
+        distance: actionLayout.distance,
+      },
+    };
+  });
+}
+
 function isTopLevelNodeId(nodeId: string | undefined): nodeId is TopLevelNodeId {
   return TOP_LEVEL_NODE_IDS.some((topLevelNodeId) => topLevelNodeId === nodeId);
 }
@@ -729,7 +763,11 @@ export function buildDashboardGraphNodes(
             ? dogManagerNodes
             : (childrenByParent.get(nodeId) ?? []);
 
-      nodes.push(...childNodes.map((node) => withChildLayout(nodeId, node, topLevelLayout)));
+      nodes.push(
+        ...withStandardTopLevelDomainActionLayouts(nodeId, childNodes).map((node) =>
+          withChildLayout(nodeId, node, topLevelLayout),
+        ),
+      );
     }
   });
 

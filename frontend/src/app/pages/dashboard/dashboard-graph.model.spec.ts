@@ -322,6 +322,24 @@ describe('dashboard graph model', () => {
     expect(hasDashboardGraphChildren('dogs', [], 'kunde')).toBeFalse();
   });
 
+  it('uses the same root-side action fan for every top-level domain action group', () => {
+    const customerNodes = buildDashboardGraphNodes([], new Set(['customers']), 'customers', 'groomer');
+    const dogNodes = buildDashboardGraphNodes([], new Set(['dogs']), 'dogs', 'groomer');
+    const customerActions = ['customer-list', 'customer-search', 'customer-add'].map(
+      (nodeId) => customerNodes.find((node) => node.id === nodeId)?.layout,
+    );
+    const dogActions = ['dog-search', 'dog-list', 'dog-add'].map(
+      (nodeId) => dogNodes.find((node) => node.id === nodeId)?.layout,
+    );
+
+    expect(customerActions).toEqual(dogActions);
+    expect(customerActions).toEqual([
+      jasmine.objectContaining({ angle: 148, distance: 145 }),
+      jasmine.objectContaining({ angle: 180, distance: 135 }),
+      jasmine.objectContaining({ angle: 212, distance: 145 }),
+    ]);
+  });
+
   it('layers Hunde actions root-side and dog contexts outside the active Hunde node', () => {
     const expandedNodeIds = new Set(['dogs']);
     const nodes = buildDashboardGraphNodes([], expandedNodeIds, 'dogs', 'groomer', visibleDogs);
