@@ -38,7 +38,7 @@ function normalizeText(value: string | null | undefined): string {
 
 function graphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): HTMLButtonElement {
   const buttons = Array.from(
-    fixture.nativeElement.querySelectorAll('.workspace-graph__node'),
+    fixture.nativeElement.querySelectorAll('.workspace-shell .workspace-graph__node'),
   ) as HTMLButtonElement[];
   const button = buttons.find((candidate) => normalizeText(candidate.textContent) === label);
 
@@ -49,9 +49,24 @@ function graphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): H
   return button;
 }
 
+function sandboxGraphNodeButton(fixture: ComponentFixture<Dashboard>, label: string): HTMLButtonElement {
+  const buttons = Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '.graph-sandbox .workspace-graph__node',
+    ),
+  ) as HTMLButtonElement[];
+  const button = buttons.find((candidate) => normalizeText(candidate.textContent) === label);
+
+  if (!button) {
+    throw new Error(`Sandbox graph node button "${label}" not found`);
+  }
+
+  return button;
+}
+
 function graphNodePosition(fixture: ComponentFixture<Dashboard>, nodeId: string): { x: number; y: number } {
   const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-    `[data-node-id="${nodeId}"]`,
+    `.workspace-shell [data-node-id="${nodeId}"]`,
   );
 
   if (!button) {
@@ -79,7 +94,7 @@ function buttonByText(fixture: ComponentFixture<Dashboard>, label: string): HTML
 
 function activeGraphNodeButton(fixture: ComponentFixture<Dashboard>): HTMLButtonElement | null {
   return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-    '.workspace-graph__node[aria-current="true"]',
+    '.workspace-shell .workspace-graph__node[aria-current="true"]',
   );
 }
 
@@ -93,7 +108,7 @@ function closeActiveWorkPage(fixture: ComponentFixture<Dashboard>): void {
 
 function graphNodeLabels(fixture: ComponentFixture<Dashboard>): string[] {
   return Array.from(
-    (fixture.nativeElement as HTMLElement).querySelectorAll('.workspace-graph__node'),
+    (fixture.nativeElement as HTMLElement).querySelectorAll('.workspace-shell .workspace-graph__node'),
   ).map((node) => normalizeText(node.textContent));
 }
 
@@ -297,6 +312,48 @@ describe('Dashboard', () => {
     expect(text).not.toContain('openid profile email roles');
     expect((fixture.nativeElement as HTMLElement).querySelector('pre')).toBeNull();
   });
+
+  it('renders an isolated graph component sandbox with static test data below the business graph', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    const sandbox = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.graph-sandbox');
+
+    expect(sandbox).not.toBeNull();
+    expect(sandbox?.textContent).toContain('Arbeitsgraph ohne Fachlogik');
+    expect(sandbox?.textContent).toContain('Root → Domain');
+    expect(sandbox?.textContent).toContain('190 px');
+    expect(sandbox?.textContent).not.toContain('Kundenliste');
+    expect(sandboxGraphNodeButton(fixture, 'Graph-Labor')).not.toBeNull();
+    expect(sandboxGraphNodeButton(fixture, 'Domäne A')).not.toBeNull();
+    expect(sandbox?.textContent).not.toContain('Seite A');
+
+    sandboxGraphNodeButton(fixture, 'Domäne A').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(sandboxGraphNodeButton(fixture, 'Seite A')).not.toBeNull();
+    expect(sandboxGraphNodeButton(fixture, 'Aktion A')).not.toBeNull();
+    expect(sandboxGraphNodeButton(fixture, 'Objekt A')).not.toBeNull();
+    expect(sandbox?.textContent).toContain('Domäne A · Typ domain');
+
+    sandboxGraphNodeButton(fixture, 'Objekt A').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(sandboxGraphNodeButton(fixture, 'Prüfen')).not.toBeNull();
+    expect(sandbox?.textContent).toContain('Objekt A · Typ instance');
+  }));
 
   it('toggles the focused-work Kunden structure node without opening a work page', fakeAsync(() => {
     fixture.detectChanges();
@@ -954,11 +1011,14 @@ describe('Dashboard', () => {
     const dogListPosition = graphNodePosition(fixture, 'dog-list');
     const dogAddPosition = graphNodePosition(fixture, 'dog-add');
     const concreteDogPosition = graphNodePosition(fixture, 'dog:12');
+    const distanceFromDogs = (position: { x: number; y: number }) =>
+      Math.hypot(position.x - dogsPosition.x, position.y - dogsPosition.y);
 
     expect(dogSearchPosition.y).toBeGreaterThan(120);
     expect(dogListPosition.y).toBeGreaterThan(120);
-    expect(dogAddPosition.y).toBeGreaterThan(dogListPosition.y);
-    expect(concreteDogPosition.y).toBeGreaterThan(dogsPosition.y + 250);
+    expect(distanceFromDogs(dogAddPosition)).toBeCloseTo(distanceFromDogs(dogSearchPosition), 0);
+    expect(distanceFromDogs(dogListPosition)).toBeCloseTo(distanceFromDogs(dogSearchPosition), 0);
+    expect(distanceFromDogs(concreteDogPosition)).toBeGreaterThan(distanceFromDogs(dogSearchPosition));
   }));
 
   it('opens one dog creation flow from the Hunde action with required customer selection', fakeAsync(() => {

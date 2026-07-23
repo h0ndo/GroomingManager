@@ -195,7 +195,7 @@ describe('dashboard graph model', () => {
     );
   });
 
-  it('keeps one to six favorites readable with compact two-line labels and a wider radial distance', () => {
+  it('keeps one to six favorites readable with compact two-line labels and a standard instance distance', () => {
     const sixCustomers = Array.from({ length: 6 }, (_, index) => ({
       id: `customer-${index + 1}`,
       firstName: `SehrlangerVorname${index + 1}`,
@@ -208,7 +208,7 @@ describe('dashboard graph model', () => {
     const favoriteNodes = nodes.filter((node) => node.kind === 'instance');
 
     expect(favoriteNodes).toHaveSize(6);
-    expect(favoriteNodes.every((node) => node.layout?.distance === 190)).toBeTrue();
+    expect(favoriteNodes.every((node) => node.layout?.distance === 350)).toBeTrue();
     favoriteNodes.forEach((node, index) => {
       expect(node.label).toBe(`SehrlangerVorname${index + 1} SehrlangerNachname${index + 1}`);
       expect(node.labelLines).toEqual(['SehrlangerVo…', 'SehrlangerNa…']);
@@ -335,7 +335,7 @@ describe('dashboard graph model', () => {
     expect(customerActions).toEqual(dogActions);
     expect(customerActions).toEqual([
       jasmine.objectContaining({ angle: 148, distance: 145 }),
-      jasmine.objectContaining({ angle: 180, distance: 135 }),
+      jasmine.objectContaining({ angle: 180, distance: 145 }),
       jasmine.objectContaining({ angle: 212, distance: 145 }),
     ]);
   });
@@ -368,12 +368,12 @@ describe('dashboard graph model', () => {
     const dogContextPositions = visibleDogs.map((dog) => layout.get(dog.id)!);
     const dogContextNodes = visibleDogs.map((dog) => nodes.find((node) => node.id === dog.id)!);
 
-    expect(nodes.find((node) => node.id === 'dogs')?.layout?.distance).toBe(285);
+    expect(nodes.find((node) => node.id === 'dogs')?.layout?.distance).toBe(190);
     expect(nodes.find((node) => node.id === 'dog-search')?.layout).toEqual(
       jasmine.objectContaining({ angle: 148, distance: 145 }),
     );
     expect(nodes.find((node) => node.id === 'dog-list')?.layout).toEqual(
-      jasmine.objectContaining({ angle: 180, distance: 135 }),
+      jasmine.objectContaining({ angle: 180, distance: 145 }),
     );
     expect(nodes.find((node) => node.id === 'dog-add')?.layout).toEqual(
       jasmine.objectContaining({ angle: 212, distance: 145 }),
@@ -383,7 +383,7 @@ describe('dashboard graph model', () => {
     expect(dogContextNodes[0].labelLines).toEqual(['wau', 'Katja Gross']);
     expect(dogContextNodes[1].labelLines).toEqual(['kakkkkkk', 'Hans Wuest']);
     expect(Math.hypot(dogsPosition.x - rootPosition.x, dogsPosition.y - rootPosition.y)).toBeCloseTo(
-      285,
+      190,
       6,
     );
     actionPositions.forEach((position) => {
@@ -434,7 +434,7 @@ describe('dashboard graph model', () => {
     );
   });
 
-  it('keeps the maximum visible dog contexts in the Hunde lower sector with staggered radii', () => {
+  it('keeps the maximum visible dog contexts in the Hunde lower sector with standard instance radii', () => {
     const sixDogs = Array.from({ length: 6 }, (_, index) => ({
       id: `dog-${index + 1}`,
       name: `Hund ${index + 1}`,
@@ -466,8 +466,8 @@ describe('dashboard graph model', () => {
 
     const rootToDogs = vector(rootPosition, dogsPosition);
 
-    expect(dogNodes.map((node) => node.layout?.angle)).toEqual([334, 346, 358, 2, 14, 26]);
-    expect(dogNodes.map((node) => node.layout?.distance)).toEqual([350, 500, 650, 350, 500, 650]);
+    expect(dogNodes.map((node) => node.layout?.angle)).toEqual([310, 330, 350, 10, 30, 50]);
+    expect(dogNodes.map((node) => node.layout?.distance)).toEqual([350, 350, 350, 350, 350, 350]);
     dogPositions.forEach((position) => {
       expect(dotProduct(rootToDogs, vector(dogsPosition, position))).toBeGreaterThan(0);
       expect(Math.hypot(position.x - dogsPosition.x, position.y - dogsPosition.y)).toBeGreaterThan(

@@ -553,6 +553,74 @@
     </aside>
   </div>
 
+  <section class="graph-sandbox" aria-labelledby="graphSandboxTitle">
+    <header class="graph-sandbox__header">
+      <div>
+        <p class="eyebrow">Komponentenlabor</p>
+        <h2 id="graphSandboxTitle">Arbeitsgraph ohne Fachlogik</h2>
+        <p>
+          Dieser zweite Graph nutzt nur statische Testdaten. Hier können wir Abstände, Fokus,
+          Aufklappen, Custom-Flex und Tastaturbedienung sauber entwickeln, bevor Fachlogik daran hängt.
+        </p>
+      </div>
+      <div class="graph-sandbox__controls" aria-label="Komponentenlabor-Steuerung">
+        <button pButton type="button" [severity]="graphSandboxLayoutMode() === 'focused-work' ? 'primary' : 'secondary'" (click)="setGraphSandboxLayoutMode('focused-work')">
+          <span pButtonIcon class="pi pi-compass"></span>
+          <span pButtonLabel>Focused Work</span>
+        </button>
+        <button pButton type="button" [severity]="graphSandboxLayoutMode() === 'custom-flex' ? 'primary' : 'secondary'" (click)="setGraphSandboxLayoutMode('custom-flex')">
+          <span pButtonIcon class="pi pi-arrows-alt"></span>
+          <span pButtonLabel>Custom Flex</span>
+        </button>
+        <button pButton type="button" severity="secondary" (click)="expandGraphSandbox()">
+          <span pButtonIcon class="pi pi-plus-circle"></span>
+          <span pButtonLabel>Alles aufklappen</span>
+        </button>
+        <button pButton type="button" severity="secondary" (click)="collapseGraphSandbox()">
+          <span pButtonIcon class="pi pi-minus-circle"></span>
+          <span pButtonLabel>Zurücksetzen</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="graph-sandbox__body">
+      <app-workspace-graph
+        [nodes]="graphSandboxNodes()"
+        [edges]="graphSandboxEdges()"
+        [activeNodeId]="graphSandboxActiveNodeId()"
+        [centeredNodeId]="graphSandboxCenteredNodeId()"
+        [lockAnchoredNodesToAutoLayout]="graphSandboxLayoutMode() === 'focused-work'"
+        [showFitToViewControl]="graphSandboxLayoutMode() === 'custom-flex'"
+        [expandedNodeIds]="graphSandboxExpandedNodeIds()"
+        [expandableNodeIds]="graphSandboxExpandableNodeIds"
+        (nodeActivated)="handleGraphSandboxSelection($event)"
+      ></app-workspace-graph>
+
+      <aside class="graph-sandbox__panel" aria-live="polite">
+        <strong>Ausgewählter Testknoten</strong>
+        <p>{{ graphSandboxPanelText() }}</p>
+        <dl>
+          <div>
+            <dt>Root → Domain</dt>
+            <dd>190 px</dd>
+          </div>
+          <div>
+            <dt>Parent → Page</dt>
+            <dd>190 px</dd>
+          </div>
+          <div>
+            <dt>Parent → Action</dt>
+            <dd>145 px</dd>
+          </div>
+          <div>
+            <dt>Parent → Instance</dt>
+            <dd>350 px</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
   <p-card styleClass="role-card">
     <ng-template pTemplate="title">Rollenspezifischer Bereich</ng-template>
     <ng-template pTemplate="subtitle">

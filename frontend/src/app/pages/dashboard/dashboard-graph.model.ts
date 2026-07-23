@@ -31,46 +31,47 @@ export type DogInstance = {
 
 const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
-const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
+const TOP_LEVEL_DOMAIN_NODE_DISTANCE = 190;
+const ACTION_NODE_DISTANCE = 145;
+const INSTANCE_NODE_DISTANCE = 350;
 const DOG_CONTEXT_LIMIT = 6;
-const DOGS_EXPANDED_NODE_DISTANCE = 285;
 const DOG_CONTEXT_LAYOUTS_BY_COUNT: Record<number, { offset: number; distance: number }[]> = {
-  1: [{ offset: 0, distance: 350 }],
+  1: [{ offset: 0, distance: INSTANCE_NODE_DISTANCE }],
   2: [
-    { offset: 342, distance: 350 },
-    { offset: 18, distance: 350 },
+    { offset: 342, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 18, distance: INSTANCE_NODE_DISTANCE },
   ],
   3: [
-    { offset: 338, distance: 350 },
-    { offset: 0, distance: 420 },
-    { offset: 22, distance: 350 },
+    { offset: 336, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 0, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 24, distance: INSTANCE_NODE_DISTANCE },
   ],
   4: [
-    { offset: 336, distance: 350 },
-    { offset: 348, distance: 470 },
-    { offset: 12, distance: 350 },
-    { offset: 24, distance: 470 },
+    { offset: 324, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 348, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 12, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 36, distance: INSTANCE_NODE_DISTANCE },
   ],
   5: [
-    { offset: 334, distance: 350 },
-    { offset: 346, distance: 500 },
-    { offset: 0, distance: 650 },
-    { offset: 14, distance: 500 },
-    { offset: 26, distance: 350 },
+    { offset: 320, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 340, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 0, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 20, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 40, distance: INSTANCE_NODE_DISTANCE },
   ],
   6: [
-    { offset: 334, distance: 350 },
-    { offset: 346, distance: 500 },
-    { offset: 358, distance: 650 },
-    { offset: 2, distance: 350 },
-    { offset: 14, distance: 500 },
-    { offset: 26, distance: 650 },
+    { offset: 310, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 330, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 350, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 10, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 30, distance: INSTANCE_NODE_DISTANCE },
+    { offset: 50, distance: INSTANCE_NODE_DISTANCE },
   ],
 };
 const TOP_LEVEL_DOMAIN_ACTION_LAYOUTS: { offset: number; distance: number }[] = [
-  { offset: 148, distance: 145 },
-  { offset: 180, distance: 135 },
-  { offset: 212, distance: 145 },
+  { offset: 148, distance: ACTION_NODE_DISTANCE },
+  { offset: 180, distance: ACTION_NODE_DISTANCE },
+  { offset: 212, distance: ACTION_NODE_DISTANCE },
 ];
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
@@ -254,7 +255,7 @@ const childrenByParent = new Map<string, WorkspaceGraphNode[]>([
         kind: 'page',
         x: 675,
         y: 65,
-        layout: { angle: 72, distance: 155 },
+        layout: { angle: 72 },
         icon: 'pi-clock',
         action: 'open-panel',
         description: 'Termine, Buchungen und Anfragen',
@@ -306,7 +307,7 @@ const dogManagerNodes: WorkspaceGraphNode[] = [
     kind: 'action',
     x: 705,
     y: 455,
-    layout: { angle: 88, distance: 145 },
+    layout: { angle: 88, distance: ACTION_NODE_DISTANCE },
     icon: 'pi-search',
     action: 'custom',
     description: 'Hunde über Namen und Kundenbezug suchen. Sichtbar für Admins und Groomer.',
@@ -317,7 +318,7 @@ const dogManagerNodes: WorkspaceGraphNode[] = [
     kind: 'action',
     x: 790,
     y: 520,
-    layout: { angle: 120, distance: 135 },
+    layout: { angle: 120, distance: ACTION_NODE_DISTANCE },
     icon: 'pi-table',
     action: 'custom',
     description: 'Barriereärmere Übersicht der erlaubten Hunde mit Kundenbezug ansehen.',
@@ -328,7 +329,7 @@ const dogManagerNodes: WorkspaceGraphNode[] = [
     kind: 'action',
     x: 700,
     y: 560,
-    layout: { angle: 152, distance: 145 },
+    layout: { angle: 152, distance: ACTION_NODE_DISTANCE },
     icon: 'pi-plus-circle',
     action: 'custom',
     description:
@@ -458,7 +459,7 @@ function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
     kind: 'instance',
     x: 170,
     y: 410,
-    layout: { distance: CUSTOMER_FAVORITE_NODE_DISTANCE },
+    layout: { distance: INSTANCE_NODE_DISTANCE },
     icon: 'pi-user',
     avatarUrl: customer.avatarUrl,
     payload: customer,
@@ -559,17 +560,13 @@ function topLevelLayoutById(focusedTopLevelNodeId?: string): Map<string, number>
 function withTopLevelLayout(
   node: WorkspaceGraphNode,
   topLevelLayout: Map<string, number>,
-  expandedNodeIds: ReadonlySet<string>,
 ): WorkspaceGraphNode {
   return {
     ...node,
     layout: {
       ...node.layout,
       angle: topLevelLayout.get(node.id) ?? node.layout?.angle,
-      distance:
-        node.id === 'dogs' && expandedNodeIds.has('dogs')
-          ? DOGS_EXPANDED_NODE_DISTANCE
-          : node.layout?.distance,
+      distance: node.layout?.distance ?? TOP_LEVEL_DOMAIN_NODE_DISTANCE,
     },
   };
 }
@@ -749,7 +746,7 @@ export function buildDashboardGraphNodes(
     rootNode,
     ...topLevelNodes
       .filter((node) => visibleTopLevelNodes.includes(node.id as TopLevelNodeId))
-      .map((node) => withTopLevelLayout(node, topLevelLayout, expandedNodeIds)),
+      .map((node) => withTopLevelLayout(node, topLevelLayout)),
   ];
   const visibleFavoriteCustomers = favoriteCustomers(customers);
   const visibleDogContexts = dogContextDogs(dogs);

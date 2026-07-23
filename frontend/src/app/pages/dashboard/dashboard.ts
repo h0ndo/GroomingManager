@@ -16,6 +16,7 @@ import {
 } from '../../shared/circular-work-page/circular-work-page';
 import {
   WorkspaceGraph,
+  WorkspaceGraphEdge,
   WorkspaceGraphNode,
   WorkspaceGraphSelection,
 } from '../../shared/workspace-graph/workspace-graph';
@@ -156,6 +157,123 @@ type AgendaItem = {
   status: string;
 };
 
+const graphSandboxNodes: WorkspaceGraphNode[] = [
+  {
+    id: 'start',
+    label: 'Graph-Labor',
+    kind: 'root',
+    logoUrl: '/s2.png',
+    rootNodeSize: '7.5rem',
+    description: 'Isolierter Startknoten für reine Navigationskomponenten-Tests',
+  },
+  {
+    id: 'sandbox-domain-a',
+    label: 'Domäne A',
+    kind: 'domain',
+    layout: { angle: 0 },
+    icon: 'pi-circle',
+    description: 'Testdomäne mit Page-, Action- und Instanzknoten',
+  },
+  {
+    id: 'sandbox-domain-b',
+    label: 'Domäne B',
+    kind: 'domain',
+    layout: { angle: 72 },
+    icon: 'pi-circle',
+    description: 'Zweite Testdomäne zum Vergleichen der Root-Abstände',
+  },
+  {
+    id: 'sandbox-domain-c',
+    label: 'Domäne C',
+    kind: 'domain',
+    layout: { angle: 144 },
+    icon: 'pi-circle',
+    description: 'Dritte Testdomäne für Layout- und Fokusverhalten',
+  },
+  {
+    id: 'sandbox-domain-d',
+    label: 'Domäne D',
+    kind: 'domain',
+    layout: { angle: 216 },
+    icon: 'pi-circle',
+    description: 'Vierte Testdomäne ohne Fachlogik',
+  },
+  {
+    id: 'sandbox-domain-e',
+    label: 'Domäne E',
+    kind: 'domain',
+    layout: { angle: 288 },
+    icon: 'pi-circle',
+    description: 'Fünfte Testdomäne zum Prüfen des Top-Level-Rings',
+  },
+  {
+    id: 'sandbox-page-a',
+    label: 'Seite A',
+    kind: 'page',
+    icon: 'pi-file',
+    description: 'Seitentestknoten ohne Routing oder Backend-Anbindung',
+  },
+  {
+    id: 'sandbox-action-a',
+    label: 'Aktion A',
+    kind: 'action',
+    icon: 'pi-bolt',
+    description: 'Aktionsknoten ohne fachliche Aktion',
+  },
+  {
+    id: 'sandbox-instance-a',
+    label: 'Objekt A',
+    labelLines: ['Objekt', 'A'],
+    kind: 'instance',
+    icon: 'pi-box',
+    description: 'Instanzknoten zum Prüfen der Typ-Abstände',
+  },
+  {
+    id: 'sandbox-instance-b',
+    label: 'Objekt B',
+    labelLines: ['Objekt', 'B'],
+    kind: 'instance',
+    icon: 'pi-box',
+    description: 'Zweiter Instanzknoten mit gleichem Typ-Abstand',
+  },
+  {
+    id: 'sandbox-action-instance-a',
+    label: 'Prüfen',
+    kind: 'action',
+    icon: 'pi-check',
+    description: 'Unteraktion am Instanzknoten ohne Seitenwechsel',
+  },
+  {
+    id: 'sandbox-page-b',
+    label: 'Seite B',
+    kind: 'page',
+    icon: 'pi-file',
+    description: 'Page-Knoten unter Domäne B',
+  },
+  {
+    id: 'sandbox-action-b',
+    label: 'Aktion B',
+    kind: 'action',
+    icon: 'pi-bolt',
+    description: 'Action-Knoten unter Domäne B',
+  },
+];
+
+const graphSandboxEdges: WorkspaceGraphEdge[] = [
+  { from: 'start', to: 'sandbox-domain-a' },
+  { from: 'start', to: 'sandbox-domain-b' },
+  { from: 'start', to: 'sandbox-domain-c' },
+  { from: 'start', to: 'sandbox-domain-d' },
+  { from: 'start', to: 'sandbox-domain-e' },
+  { from: 'sandbox-domain-a', to: 'sandbox-page-a' },
+  { from: 'sandbox-domain-a', to: 'sandbox-action-a' },
+  { from: 'sandbox-domain-a', to: 'sandbox-instance-a' },
+  { from: 'sandbox-domain-a', to: 'sandbox-instance-b' },
+  { from: 'sandbox-instance-a', to: 'sandbox-action-instance-a' },
+  { from: 'sandbox-domain-b', to: 'sandbox-page-b' },
+  { from: 'sandbox-domain-b', to: 'sandbox-action-b' },
+];
+
 @Component({
   selector: 'app-dashboard',
   imports: [
@@ -188,6 +306,10 @@ export class Dashboard implements OnInit {
   protected readonly expandedNodeIds = signal<ReadonlySet<string>>(new Set());
   protected readonly focusedTopLevelNodeId = signal<string | undefined>(undefined);
   protected readonly layoutMode = signal<WorkspaceLayoutMode>('focused-work');
+  protected readonly graphSandboxActiveNodeId = signal('start');
+  protected readonly graphSandboxExpandedNodeIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly graphSandboxLayoutMode = signal<WorkspaceLayoutMode>('focused-work');
+  protected readonly graphSandboxSelectedNode = signal<WorkspaceGraphNode>(graphSandboxNodes[0]);
   protected readonly selectedCustomer = signal<CustomerInstance | null>(null);
   protected readonly favoriteCustomers = signal<CustomerInstance[]>([]);
   protected readonly favoriteStatusMessage = signal('');
@@ -423,6 +545,29 @@ export class Dashboard implements OnInit {
     () =>
       this.lockedGraphPresentation()?.showFitToViewControl ?? this.layoutMode() === 'custom-flex',
   );
+  protected readonly graphSandboxNodes = computed(() =>
+    graphSandboxNodes.filter((node) => this.isGraphSandboxNodeVisible(node.id)),
+  );
+  protected readonly graphSandboxEdges = computed(() => {
+    const visibleNodeIds = new Set(this.graphSandboxNodes().map((node) => node.id));
+
+    return graphSandboxEdges.filter(
+      (edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to),
+    );
+  });
+  protected readonly graphSandboxExpandableNodeIds = graphSandboxNodes
+    .filter((node) => graphSandboxEdges.some((edge) => edge.from === node.id))
+    .map((node) => node.id);
+  protected readonly graphSandboxCenteredNodeId = computed(() =>
+    this.graphSandboxLayoutMode() === 'focused-work' ? this.graphSandboxActiveNodeId() : '',
+  );
+  protected readonly graphSandboxPanelText = computed(() => {
+    const selectedNode = this.graphSandboxSelectedNode();
+    const childCount = graphSandboxEdges.filter((edge) => edge.from === selectedNode.id).length;
+    const parentLabel = this.graphSandboxParentNode(selectedNode.id)?.label ?? 'kein Parent';
+
+    return `${selectedNode.label} · Typ ${selectedNode.kind} · Parent: ${parentLabel} · Kinder: ${childCount}`;
+  });
   private readonly lockedGraphPresentation = signal<LockedGraphPresentation | null>(null);
   private focusNodeAfterWorkPageClose: string | null = null;
   private customerSearchBusyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1428,6 +1573,36 @@ export class Dashboard implements OnInit {
     }
   }
 
+  protected setGraphSandboxLayoutMode(mode: WorkspaceLayoutMode): void {
+    this.graphSandboxLayoutMode.set(mode);
+  }
+
+  protected expandGraphSandbox(): void {
+    this.graphSandboxExpandedNodeIds.set(new Set(this.graphSandboxExpandableNodeIds));
+  }
+
+  protected collapseGraphSandbox(): void {
+    this.graphSandboxExpandedNodeIds.set(new Set());
+    this.graphSandboxActiveNodeId.set('start');
+    this.graphSandboxSelectedNode.set(graphSandboxNodes[0]);
+  }
+
+  protected handleGraphSandboxSelection(selection: WorkspaceGraphSelection): void {
+    const node = selection.node;
+
+    this.graphSandboxActiveNodeId.set(node.id);
+    this.graphSandboxSelectedNode.set(node);
+
+    if (this.graphSandboxLayoutMode() === 'custom-flex' && node.id === 'start') {
+      this.toggleGraphSandboxExpansion();
+      return;
+    }
+
+    if (this.hasGraphSandboxChildren(node.id)) {
+      this.toggleGraphSandboxNode(node.id);
+    }
+  }
+
   protected expandEntireGraph(): void {
     if (this.graphInteractionLocked()) {
       return;
@@ -1463,6 +1638,74 @@ export class Dashboard implements OnInit {
     }
 
     this.expandEntireGraph();
+  }
+
+  private toggleGraphSandboxExpansion(): void {
+    if (this.graphSandboxExpandableNodeIds.every((nodeId) => this.graphSandboxExpandedNodeIds().has(nodeId))) {
+      this.collapseGraphSandbox();
+      return;
+    }
+
+    this.expandGraphSandbox();
+  }
+
+  private toggleGraphSandboxNode(nodeId: string): void {
+    this.graphSandboxExpandedNodeIds.update((current) => {
+      const next = new Set(current);
+
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+        this.graphSandboxDescendantNodeIds(nodeId).forEach((descendantNodeId) =>
+          next.delete(descendantNodeId),
+        );
+      } else {
+        next.add(nodeId);
+      }
+
+      return next;
+    });
+  }
+
+  private isGraphSandboxNodeVisible(nodeId: string): boolean {
+    const parentNode = this.graphSandboxParentNode(nodeId);
+
+    if (!parentNode) {
+      return true;
+    }
+
+    if (parentNode.id === 'start') {
+      return true;
+    }
+
+    return this.graphSandboxExpandedNodeIds().has(parentNode.id) && this.isGraphSandboxNodeVisible(parentNode.id);
+  }
+
+  private hasGraphSandboxChildren(nodeId: string): boolean {
+    return graphSandboxEdges.some((edge) => edge.from === nodeId);
+  }
+
+  private graphSandboxParentNode(nodeId: string): WorkspaceGraphNode | undefined {
+    const parentNodeId = graphSandboxEdges.find((edge) => edge.to === nodeId)?.from;
+
+    return parentNodeId ? graphSandboxNodes.find((node) => node.id === parentNodeId) : undefined;
+  }
+
+  private graphSandboxDescendantNodeIds(nodeId: string): string[] {
+    const descendants: string[] = [];
+    const pendingNodeIds = [nodeId];
+
+    while (pendingNodeIds.length > 0) {
+      const currentNodeId = pendingNodeIds.shift()!;
+      const childNodeIds = graphSandboxEdges
+        .filter((edge) => edge.from === currentNodeId)
+        .map((edge) => edge.to)
+        .filter((childNodeId) => !descendants.includes(childNodeId));
+
+      descendants.push(...childNodeIds);
+      pendingNodeIds.push(...childNodeIds);
+    }
+
+    return descendants;
   }
 
   private normalizeFocusedWorkState(): void {

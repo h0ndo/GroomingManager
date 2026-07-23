@@ -37,6 +37,12 @@ const DEFAULT_CENTER: RadialPoint = { x: 0, y: 0 };
 const DEFAULT_LEVEL_DISTANCE = 170;
 const DEFAULT_SIBLING_ANGLE = 32;
 const DEFAULT_ROOT_START_ANGLE = 0;
+const DEFAULT_DISTANCE_BY_NODE_TYPE: Record<string, number> = {
+  action: 145,
+  domain: 190,
+  instance: 350,
+  page: 190,
+};
 
 export function computeRadialGraphLayout(
   nodes: RadialGraphNode[],
@@ -78,12 +84,17 @@ export function computeRadialGraphLayout(
       const child = nodesById.get(childId);
       const placement = resolvedChildPlacements[index];
       const angle = placement.angle;
-      const childDistance = child?.preferredDistance ?? placement.distance ?? levelDistance;
+      const childDistance =
+        child?.preferredDistance ?? distanceForNodeType(child?.type) ?? placement.distance ?? levelDistance;
       const childPosition = pointFrom(parentPosition, angle, childDistance);
       positions.set(childId, { ...childPosition, angle, depth: parentDepth + 1 });
       placeChildren(childId, angle, parentDepth + 1, false);
     });
   }
+}
+
+function distanceForNodeType(type: string | undefined): number | undefined {
+  return type ? DEFAULT_DISTANCE_BY_NODE_TYPE[type] : undefined;
 }
 
 function resolveChildPlacements(

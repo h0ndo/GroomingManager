@@ -159,6 +159,53 @@ describe('WorkspaceGraph', () => {
     expect(rootPosition.x).toBeLessThan(activePosition.x);
   });
 
+  it('keeps automatic edge lengths stable by child node type', () => {
+    const graphNodes: WorkspaceGraphNode[] = [
+      { id: 'start', label: 'Start', kind: 'root' },
+      { id: 'customers', label: 'Kunden', kind: 'domain', layout: { angle: 0 } },
+      { id: 'dogs', label: 'Hunde', kind: 'domain', layout: { angle: 90 } },
+      { id: 'customer-search', label: 'Suchen', kind: 'action' },
+      { id: 'customer-add', label: 'Hinzufügen', kind: 'action' },
+      { id: 'customer-list', label: 'Kundenliste', kind: 'page' },
+      { id: 'customer-1', label: 'Katja Gross', kind: 'instance' },
+      { id: 'customer-2', label: 'Alex Sommer', kind: 'instance' },
+    ];
+    const graphEdges: WorkspaceGraphEdge[] = [
+      { from: 'start', to: 'customers' },
+      { from: 'start', to: 'dogs' },
+      { from: 'customers', to: 'customer-search' },
+      { from: 'customers', to: 'customer-add' },
+      { from: 'customers', to: 'customer-list' },
+      { from: 'dogs', to: 'customer-1' },
+      { from: 'dogs', to: 'customer-2' },
+    ];
+
+    fixture.componentRef.setInput('nodes', graphNodes);
+    fixture.componentRef.setInput('edges', graphEdges);
+    fixture.componentRef.setInput('autoLayout', true);
+    fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', true);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
+    const positionById = new Map(
+      graphNodes.map((node) => [node.id, component.nodePosition(node)] as const),
+    );
+    const edgeLength = (from: string, to: string): number => {
+      const fromPosition = positionById.get(from)!;
+      const toPosition = positionById.get(to)!;
+
+      return Math.hypot(toPosition.x - fromPosition.x, toPosition.y - fromPosition.y);
+    };
+
+    expect(edgeLength('start', 'customers')).toBeCloseTo(190, 5);
+    expect(edgeLength('start', 'dogs')).toBeCloseTo(190, 5);
+    expect(edgeLength('customers', 'customer-search')).toBeCloseTo(145, 5);
+    expect(edgeLength('customers', 'customer-add')).toBeCloseTo(145, 5);
+    expect(edgeLength('customers', 'customer-list')).toBeCloseTo(190, 5);
+    expect(edgeLength('dogs', 'customer-1')).toBeCloseTo(350, 5);
+    expect(edgeLength('dogs', 'customer-2')).toBeCloseTo(350, 5);
+  });
+
   it('keeps focused-work top-level pointer clicks on the activation path instead of starting viewport panning', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
@@ -343,10 +390,9 @@ describe('WorkspaceGraph', () => {
     movedOffsets.forEach((offset, index) => {
       expect(offset.x).toBeCloseTo(originalOffsets[index].x, 5);
       expect(offset.y).toBeCloseTo(originalOffsets[index].y, 5);
-      expect(Math.hypot(offset.x, offset.y)).toBeGreaterThan(180);
-      expect(Math.hypot(offset.x, offset.y)).toBeLessThan(335);
+      expect(Math.hypot(offset.x, offset.y)).toBeCloseTo(145, 5);
     });
-    expect(Math.min(...siblingDistances)).toBeGreaterThan(120);
+    expect(Math.min(...siblingDistances)).toBeGreaterThan(45);
     expect(movedChildPositions[0]).not.toEqual({ x: 999, y: 999 });
   });
 
@@ -359,7 +405,6 @@ describe('WorkspaceGraph', () => {
         id: `customer-${index + 1}`,
         label: `Kunde ${index + 1}`,
         kind: 'instance' as const,
-        layout: { distance: 190 },
       })),
     ];
     const graphEdges: WorkspaceGraphEdge[] = [
@@ -387,7 +432,7 @@ describe('WorkspaceGraph', () => {
     favoritePositions.forEach((position) => {
       expect(
         Math.hypot(position.x - favoritesPosition.x, position.y - favoritesPosition.y),
-      ).toBeCloseTo(190, 5);
+      ).toBeCloseTo(350, 5);
     });
     favoritePositions.slice(1).forEach((position, index) => {
       const previousPosition = favoritePositions[index];
