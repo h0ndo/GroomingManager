@@ -90,6 +90,27 @@ function customerSearchResultButtons(fixture: ComponentFixture<Dashboard>): HTML
   );
 }
 
+function dogDto(
+  id: number,
+  name: string,
+  customerId: number,
+  customerDisplayName: string,
+  overrides: Record<string, string | number | null> = {},
+): Record<string, string | number | null> {
+  return {
+    id,
+    ownerSubject: `customer:${customerId}`,
+    name,
+    breed: 'Pudel',
+    size: 'mittel',
+    groomingNotes: null,
+    imageBase64: null,
+    customerId,
+    customerDisplayName,
+    ...overrides,
+  };
+}
+
 function favoriteToggleButtons(fixture: ComponentFixture<Dashboard>): HTMLButtonElement[] {
   return Array.from(
     (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.favorite-toggle'),
@@ -232,6 +253,9 @@ describe('Dashboard', () => {
           request.url === `${runtimeConfig.apiBaseUrl}/customers` && request.method === 'GET',
       )
       .forEach((request) => request.flush([]));
+    httpTesting
+      .match((request) => request.url === `${runtimeConfig.apiBaseUrl}/pets` && request.method === 'GET')
+      .forEach((request) => request.flush([]));
     httpTesting.verify();
   });
 
@@ -339,6 +363,8 @@ describe('Dashboard', () => {
       'Hunde, Domäne. Aktiver Arbeitsknoten',
     );
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Hund suchen');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Hundeliste');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Hund hinzufügen');
 
     graphNodeButton(fixture, 'Kunden').click();
@@ -779,6 +805,135 @@ describe('Dashboard', () => {
     expect(dialog?.querySelector('[role="alert"]')).toBeNull();
   }));
 
+
+  it('opens dog search from the Hunde node with limited results and visible customer context', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    graphNodeButton(fixture, 'Hunde').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Hunde', 'Hund suchen', 'Hundeliste']),
+    );
+
+    graphNodeButton(fixture, 'Hund suchen').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const dialog = host.querySelector('[role="dialog"]');
+    const graphHost = host.querySelector('app-workspace-graph');
+
+    expect(dialog?.textContent).toContain('Hundesuche');
+    expect(host.querySelector<HTMLInputElement>('#workPageDogSearch')).not.toBeNull();
+    expect(graphHost?.getAttribute('inert')).toBe('');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hunde');
+    expect(graphNodeButton(fixture, 'Hund suchen').getAttribute('aria-current')).toBeNull();
+
+    const searchInput = host.querySelector<HTMLInputElement>('#workPageDogSearch')!;
+    searchInput.value = 'testhund';
+    searchInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const request = httpTesting.expectOne(
+      (candidate) =>
+        candidate.url === `${runtimeConfig.apiBaseUrl}/pets` &&
+        candidate.params.get('query') === 'testhund' &&
+        candidate.params.get('limit') === '7',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      dogDto(1, 'Testhund A', 7, 'Katja Gross'),
+      dogDto(2, 'Testhund B', 8, 'Mila Muster'),
+      dogDto(3, 'Testhund C', 9, 'Alex Sommer'),
+      dogDto(4, 'Testhund D', 10, 'Lena Klein'),
+      dogDto(5, 'Testhund E', 11, 'Nora Kurz'),
+      dogDto(6, 'Testhund F', 12, 'Mara Lang'),
+      dogDto(7, 'Testhund G', 13, 'Noah Stark'),
+      dogDto(8, 'Nicht passend', 14, 'Filter Kunde'),
+    ]);
+    fixture.detectChanges();
+
+    const resultButtons = Array.from(
+      host.querySelectorAll<HTMLButtonElement>('.work-page-search__profile'),
+    );
+
+    expect(resultButtons).toHaveSize(6);
+    expect(dialog?.textContent).toContain('Testhund A');
+    expect(dialog?.textContent).toContain('Katja Gross');
+    expect(dialog?.textContent).toContain('7 Hunde gefunden. Bitte Suche verfeinern');
+    expect(dialog?.textContent).not.toContain('Testhund G');
+    expect(resultButtons[0].getAttribute('aria-label')).toBe(
+      'Testhund A, gehört zu Katja Gross, Hund-Kontext öffnen',
+    );
+  }));
+
+  it('opens dog list entries as concrete dog contexts without focusing the action node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'admin@grooming-manager.local',
+      roles: ['ROLE_admin'],
+    });
+    flushCustomerFavoritesIfRequested();
+    fixture.detectChanges();
+
+    graphNodeButton(fixture, 'Hunde').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Hundeliste').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const request = httpTesting.expectOne(
+      (candidate) =>
+        candidate.url === `${runtimeConfig.apiBaseUrl}/pets` &&
+        candidate.params.get('limit') === '100',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([dogDto(12, 'Nala', 8, 'Mila Muster', { breed: 'Labradoodle' })]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const dialog = host.querySelector('[role="dialog"]');
+    const dogEntry = host.querySelector<HTMLButtonElement>('.dog-list-work-page__item')!;
+
+    expect(dialog?.textContent).toContain('Hundeliste');
+    expect(dialog?.textContent).toContain('Nala');
+    expect(dialog?.textContent).toContain('Mila Muster');
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Hunde');
+    expect(graphNodeButton(fixture, 'Hundeliste').getAttribute('aria-current')).toBeNull();
+
+    dogEntry.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    tick(260);
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Nala Mila Muster', 'Details', 'Termin']),
+    );
+    expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Nala Mila Muster');
+    expect(host.textContent).toContain('Nala gehört zu Mila Muster');
+  }));
 
   it('opens one dog creation flow from the Hunde action with required customer selection', fakeAsync(() => {
     fixture.detectChanges();
@@ -1954,7 +2109,7 @@ describe('Dashboard', () => {
     buttonByText(fixture, 'Alles aufklappen').click();
     fixture.detectChanges();
 
-    expect(graphNodeLabels(fixture).length).toBe(29);
+    expect(graphNodeLabels(fixture).length).toBe(31);
     expect(graphNodeLabels(fixture)).toContain('Groomer hinzufügen');
 
     buttonByText(fixture, 'Focused Work').click();

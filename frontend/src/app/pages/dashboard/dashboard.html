@@ -82,67 +82,120 @@
       >
         @switch (workPage.contentType) {
           @case ('search') {
-            <div class="work-page-search" role="search" aria-label="Kundensuche nach Vor- und Nachname">
-              <label for="workPageCustomerSearch">Kund:in suchen</label>
-              <input
-                id="workPageCustomerSearch"
-                name="workPageCustomerSearch"
-                type="search"
-                [ngModel]="customerSearchTerm()"
-                (ngModelChange)="updateCustomerSearchTerm($event)"
-                placeholder="Vorname oder Nachname"
-                autocomplete="off"
-              />
-              <p class="work-page-search__hint">Die Suche berücksichtigt Vorname und Nachname. Kund:innen haben auf diese Suche keinen Zugriff.</p>
-              @if (customerSearchBusy()) {
-                <p class="work-page-search__empty" role="status">Kundensuche wird geladen…</p>
-              }
-              <div class="work-page-search__items" role="list" aria-label="Suchergebnisse">
-                @for (customer of visibleCustomerSearchResults(); track customer.id) {
-                  <article class="work-page-search__item work-page-search__item--avatar-node" role="listitem">
-                    <button
-                      type="button"
-                      class="work-page-search__profile"
-                      [attr.aria-label]="customer.name + ', ' + customer.status + ', Kundenprofil im Lesemodus öffnen'"
-                      (click)="selectCustomerSearchResult(customer)"
-                      (keydown.enter)="selectCustomerSearchResult(customer)"
-                    >
-                      <span class="work-page-search__avatar" aria-hidden="true">
-                        @if (customer.avatarUrl) {
-                          <img [src]="customer.avatarUrl" alt="" />
-                        } @else {
-                          {{ customerInitials(customer) }}
-                        }
-                      </span>
-                      <strong>{{ customer.name }}</strong>
-                      <small>{{ customer.status }}</small>
-                      <span class="work-page-search__favorite-state">{{ favoriteStatusLabel(customer) }}</span>
-                    </button>
-                    @if (canManageCustomers()) {
+            @if (workPage.sourceNodeId === 'dog-search') {
+              <div class="work-page-search" role="search" aria-label="Hundesuche nach Name oder Kundenbezug">
+                <label for="workPageDogSearch">Hund suchen</label>
+                <input
+                  id="workPageDogSearch"
+                  name="workPageDogSearch"
+                  type="search"
+                  [ngModel]="dogSearchTerm()"
+                  (ngModelChange)="updateDogSearchTerm($event)"
+                  placeholder="Hundename oder Kund:in"
+                  autocomplete="off"
+                />
+                <p class="work-page-search__hint">Die Treffer zeigen immer Hund und Kundenbezug. Kund:innen haben auf diese Suche keinen Zugriff.</p>
+                @if (dogSearchBusy()) {
+                  <p class="work-page-search__empty" role="status">Hundesuche wird geladen…</p>
+                }
+                @if (dogSearchError()) {
+                  <p class="favorite-status favorite-status--error" role="alert">{{ dogSearchError() }}</p>
+                }
+                <div class="work-page-search__items" role="list" aria-label="Hundesuchergebnisse">
+                  @for (dog of visibleDogSearchResults(); track dog.id) {
+                    <article class="work-page-search__item work-page-search__item--avatar-node" role="listitem">
                       <button
                         type="button"
-                        class="favorite-toggle"
-                        [disabled]="isFavoriteOperationBusy(customer)"
-                        [attr.aria-pressed]="isFavoriteCustomer(customer)"
-                        [attr.aria-label]="customer.name + ': ' + favoriteActionLabel(customer)"
-                        (click)="toggleFavoriteCustomer(customer, $event)"
+                        class="work-page-search__profile"
+                        [attr.aria-label]="dog.name + ', gehört zu ' + dog.customerLabel + ', Hund-Kontext öffnen'"
+                        (click)="selectDogResult(dog)"
+                        (keydown.enter)="selectDogResult(dog)"
                       >
-                        <span class="pi" [class.pi-star-fill]="isFavoriteCustomer(customer)" [class.pi-star]="!isFavoriteCustomer(customer)" aria-hidden="true"></span>
-                        {{ favoriteActionLabel(customer) }}
+                        <span class="work-page-search__avatar" aria-hidden="true">
+                          @if (dog.avatarUrl) {
+                            <img [src]="dog.avatarUrl" alt="" />
+                          } @else {
+                            <span class="pi pi-heart" aria-hidden="true"></span>
+                          }
+                        </span>
+                        <strong>{{ dog.name }}</strong>
+                        <small>{{ dog.customerLabel }}</small>
+                        @if (dog.breed || dog.size) {
+                          <span class="work-page-search__favorite-state">{{ dog.breed || 'Rasse offen' }} · {{ dog.size || 'Größe offen' }}</span>
+                        }
                       </button>
-                    }
-                  </article>
-                } @empty {
-                  <p class="work-page-search__empty" role="status">{{ customerSearchEmptyMessage() }}</p>
+                    </article>
+                  } @empty {
+                    <p class="work-page-search__empty" role="status">{{ dogSearchEmptyMessage() }}</p>
+                  }
+                </div>
+                @if (dogSearchOverflowMessage()) {
+                  <p class="work-page-search__refine-hint" role="status">{{ dogSearchOverflowMessage() }}</p>
                 }
               </div>
-              @if (favoriteStatusMessage()) {
-                <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
-              }
-              @if (customerSearchOverflowMessage()) {
-                <p class="work-page-search__refine-hint" role="status">{{ customerSearchOverflowMessage() }}</p>
-              }
-            </div>
+            } @else {
+              <div class="work-page-search" role="search" aria-label="Kundensuche nach Vor- und Nachname">
+                <label for="workPageCustomerSearch">Kund:in suchen</label>
+                <input
+                  id="workPageCustomerSearch"
+                  name="workPageCustomerSearch"
+                  type="search"
+                  [ngModel]="customerSearchTerm()"
+                  (ngModelChange)="updateCustomerSearchTerm($event)"
+                  placeholder="Vorname oder Nachname"
+                  autocomplete="off"
+                />
+                <p class="work-page-search__hint">Die Suche berücksichtigt Vorname und Nachname. Kund:innen haben auf diese Suche keinen Zugriff.</p>
+                @if (customerSearchBusy()) {
+                  <p class="work-page-search__empty" role="status">Kundensuche wird geladen…</p>
+                }
+                <div class="work-page-search__items" role="list" aria-label="Suchergebnisse">
+                  @for (customer of visibleCustomerSearchResults(); track customer.id) {
+                    <article class="work-page-search__item work-page-search__item--avatar-node" role="listitem">
+                      <button
+                        type="button"
+                        class="work-page-search__profile"
+                        [attr.aria-label]="customer.name + ', ' + customer.status + ', Kundenprofil im Lesemodus öffnen'"
+                        (click)="selectCustomerSearchResult(customer)"
+                        (keydown.enter)="selectCustomerSearchResult(customer)"
+                      >
+                        <span class="work-page-search__avatar" aria-hidden="true">
+                          @if (customer.avatarUrl) {
+                            <img [src]="customer.avatarUrl" alt="" />
+                          } @else {
+                            {{ customerInitials(customer) }}
+                          }
+                        </span>
+                        <strong>{{ customer.name }}</strong>
+                        <small>{{ customer.status }}</small>
+                        <span class="work-page-search__favorite-state">{{ favoriteStatusLabel(customer) }}</span>
+                      </button>
+                      @if (canManageCustomers()) {
+                        <button
+                          type="button"
+                          class="favorite-toggle"
+                          [disabled]="isFavoriteOperationBusy(customer)"
+                          [attr.aria-pressed]="isFavoriteCustomer(customer)"
+                          [attr.aria-label]="customer.name + ': ' + favoriteActionLabel(customer)"
+                          (click)="toggleFavoriteCustomer(customer, $event)"
+                        >
+                          <span class="pi" [class.pi-star-fill]="isFavoriteCustomer(customer)" [class.pi-star]="!isFavoriteCustomer(customer)" aria-hidden="true"></span>
+                          {{ favoriteActionLabel(customer) }}
+                        </button>
+                      }
+                    </article>
+                  } @empty {
+                    <p class="work-page-search__empty" role="status">{{ customerSearchEmptyMessage() }}</p>
+                  }
+                </div>
+                @if (favoriteStatusMessage()) {
+                  <p class="favorite-status" role="status">{{ favoriteStatusMessage() }}</p>
+                }
+                @if (customerSearchOverflowMessage()) {
+                  <p class="work-page-search__refine-hint" role="status">{{ customerSearchOverflowMessage() }}</p>
+                }
+              </div>
+            }
           }
           @case ('form') {
             @if (isDogCreateWorkPage(workPage)) {
@@ -286,6 +339,27 @@
                   </ng-template>
                 </p-table>
               </div>
+            } @else if (workPage.sourceNodeId === 'dog-list') {
+              <div class="dog-list-work-page" aria-label="Hundeliste mit Kundenbezug">
+                <div class="dog-list-work-page__items work-page-list-stub__items" role="list" aria-label="Hunde">
+                  @for (dog of dogListItems(); track dog.id) {
+                    <button
+                      type="button"
+                      class="dog-list-work-page__item work-page-list-stub__item"
+                      role="listitem"
+                      [attr.aria-label]="dog.name + ', gehört zu ' + dog.customerLabel + ', Hund-Kontext öffnen'"
+                      (click)="selectDogResult(dog)"
+                      (keydown.enter)="selectDogResult(dog)"
+                    >
+                      <strong>{{ dog.name }}</strong>
+                      <span>{{ dog.customerLabel }}</span>
+                      <small>{{ dog.breed || 'Rasse nicht hinterlegt' }} · {{ dog.size || 'Größe nicht hinterlegt' }}</small>
+                    </button>
+                  } @empty {
+                    <p class="customer-list-work-page__empty" role="status">Noch keine Hunde vorhanden.</p>
+                  }
+                </div>
+              </div>
             } @else {
               <div class="work-page-list-stub" aria-label="Kundenliste Beispielinhalt">
                 <label for="workPageCustomerFilter">Kund:innen filtern</label>
@@ -329,7 +403,31 @@
             </div>
           }
           @case ('detail') {
-            @if (selectedCustomer(); as customer) {
+            @if (selectedDog(); as dog) {
+              <article class="dog-detail-read customer-profile-read" tabindex="-1" [attr.aria-label]="dog.name + ' Hundedetails im Lesemodus'">
+                <dl class="customer-profile-read__fields">
+                  <div>
+                    <dt>Hund</dt>
+                    <dd>{{ dog.name }}</dd>
+                  </div>
+                  <div>
+                    <dt>Kundenbezug</dt>
+                    <dd>{{ dog.customerLabel }}</dd>
+                  </div>
+                  <div>
+                    <dt>Rasse</dt>
+                    <dd>{{ dog.breed || 'Nicht hinterlegt' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Größe</dt>
+                    <dd>{{ dog.size || 'Nicht hinterlegt' }}</dd>
+                  </div>
+                </dl>
+                @if (dog.groomingNotes) {
+                  <p class="customer-profile-read__note">{{ dog.groomingNotes }}</p>
+                }
+              </article>
+            } @else if (selectedCustomer(); as customer) {
               <article
                 id="customerProfileReadMode"
                 class="customer-profile-read"

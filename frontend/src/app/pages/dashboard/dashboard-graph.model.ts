@@ -18,9 +18,22 @@ export type CustomerInstance = {
   name?: string;
 };
 
+export type DogInstance = {
+  id: string;
+  name: string;
+  customerLabel: string;
+  customerId?: string;
+  breed?: string;
+  size?: string;
+  groomingNotes?: string;
+  avatarUrl?: string;
+};
+
 const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
 const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
+const DOG_CONTEXT_LIMIT = 6;
+const DOG_CONTEXT_NODE_DISTANCE = 190;
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
   'groomers',
@@ -252,12 +265,34 @@ const customerManagerNodes: WorkspaceGraphNode[] = [
 
 const dogManagerNodes: WorkspaceGraphNode[] = [
   {
+    id: 'dog-search',
+    label: 'Hund suchen',
+    kind: 'action',
+    x: 705,
+    y: 455,
+    layout: { angle: 250 },
+    icon: 'pi-search',
+    action: 'custom',
+    description: 'Hunde über Namen und Kundenbezug suchen. Sichtbar für Admins und Groomer.',
+  },
+  {
+    id: 'dog-list',
+    label: 'Hundeliste',
+    kind: 'action',
+    x: 790,
+    y: 520,
+    layout: { angle: 300 },
+    icon: 'pi-table',
+    action: 'custom',
+    description: 'Barriereärmere Übersicht der erlaubten Hunde mit Kundenbezug ansehen.',
+  },
+  {
     id: 'dog-add',
     label: 'Hund hinzufügen',
     kind: 'action',
     x: 700,
     y: 560,
-    layout: { angle: 330 },
+    layout: { angle: 350 },
     icon: 'pi-plus-circle',
     action: 'custom',
     description:
@@ -311,6 +346,57 @@ function truncateLabelLine(labelLine: string): string {
   }
 
   return `${labelLine.slice(0, CUSTOMER_LABEL_LINE_MAX_LENGTH - 1)}…`;
+}
+
+function dogContextDogs(dogs: readonly DogInstance[]): DogInstance[] {
+  return dogs.slice(0, DOG_CONTEXT_LIMIT);
+}
+
+function dogLabelLines(dog: DogInstance): string[] {
+  return [truncateLabelLine(dog.name), truncateLabelLine(dog.customerLabel)];
+}
+
+function dogContextNode(dog: DogInstance): WorkspaceGraphNode {
+  return {
+    id: dog.id,
+    label: dog.name,
+    labelLines: dogLabelLines(dog),
+    kind: 'instance',
+    x: 745,
+    y: 640,
+    layout: { distance: DOG_CONTEXT_NODE_DISTANCE },
+    icon: 'pi-heart',
+    avatarUrl: dog.avatarUrl,
+    payload: dog,
+    description: `Konkreter Hund-Kontext für ${dog.name} mit sichtbarem Kundenbezug ${dog.customerLabel}`,
+  };
+}
+
+function dogActionNodes(dog: DogInstance): WorkspaceGraphNode[] {
+  return [
+    {
+      id: `${dog.id}-details`,
+      label: 'Details',
+      kind: 'action',
+      x: 720,
+      y: 760,
+      icon: 'pi-id-card',
+      action: 'custom',
+      payload: dog,
+      description: `Details und Kundenbezug von ${dog.name} ansehen`,
+    },
+    {
+      id: `${dog.id}-appointment`,
+      label: 'Termin',
+      kind: 'page',
+      x: 880,
+      y: 700,
+      icon: 'pi-calendar-plus',
+      action: 'open-panel',
+      payload: dog,
+      description: `Termin-Kontext für ${dog.name} vorbereiten`,
+    },
+  ];
 }
 
 function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
@@ -493,6 +579,7 @@ export function isDashboardGraphWorkFocusNode(node: WorkspaceGraphNode): boolean
 export function expandableDashboardGraphNodeIds(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): string[] {
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
 
@@ -503,6 +590,7 @@ export function expandableDashboardGraphNodeIds(
   return [
     ...visibleTopLevelNodes,
     ...favoriteCustomers(customers).map((customer) => customer.id),
+    ...dogContextDogs(dogs).map((dog) => dog.id),
   ];
 }
 
@@ -510,8 +598,9 @@ export function isDashboardGraphFullyExpanded(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): boolean {
-  return expandableDashboardGraphNodeIds(customers, role).every((nodeId) =>
+  return expandableDashboardGraphNodeIds(customers, role, dogs).every((nodeId) =>
     expandedNodeIds.has(nodeId),
   );
 }
@@ -520,9 +609,10 @@ export function dashboardGraphDescendantNodeIds(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): string[] {
-  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
-  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role, dogs));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role, dogs);
   const descendants: string[] = [];
   const pendingNodeIds = [nodeId];
 
@@ -544,9 +634,10 @@ export function dashboardGraphSiblingSubtreeNodeIds(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): string[] {
-  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
-  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role, dogs));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role, dogs);
   const parentNodeIds = edges
     .filter((edge) => edge.to === nodeId)
     .map((edge) => edge.from);
@@ -558,7 +649,7 @@ export function dashboardGraphSiblingSubtreeNodeIds(
       .map((edge) => edge.to)
       .forEach((siblingNodeId) => {
         subtreeNodeIds.add(siblingNodeId);
-        dashboardGraphDescendantNodeIds(siblingNodeId, customers, role).forEach(
+        dashboardGraphDescendantNodeIds(siblingNodeId, customers, role, dogs).forEach(
           (descendantNodeId) => subtreeNodeIds.add(descendantNodeId),
         );
       });
@@ -572,6 +663,7 @@ export function buildDashboardGraphNodes(
   expandedNodeIds: ReadonlySet<string>,
   focusedTopLevelNodeId?: string,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): WorkspaceGraphNode[] {
   const topLevelLayout = topLevelLayoutById(focusedTopLevelNodeId);
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
@@ -582,6 +674,7 @@ export function buildDashboardGraphNodes(
       .map((node) => withTopLevelLayout(node, topLevelLayout)),
   ];
   const visibleFavoriteCustomers = favoriteCustomers(customers);
+  const visibleDogContexts = dogContextDogs(dogs);
 
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
@@ -593,6 +686,18 @@ export function buildDashboardGraphNodes(
             : (childrenByParent.get(nodeId) ?? []);
 
       nodes.push(...childNodes.map((node) => withChildLayout(nodeId, node, topLevelLayout)));
+    }
+  });
+
+  const isDogsVisible = canManageCustomerGraph(role) && expandedNodeIds.has('dogs');
+
+  if (isDogsVisible) {
+    nodes.push(...visibleDogContexts.map((dog) => dogContextNode(dog)));
+  }
+
+  visibleDogContexts.forEach((dog) => {
+    if (isDogsVisible && expandedNodeIds.has(dog.id)) {
+      nodes.push(...dogActionNodes(dog));
     }
   });
 
@@ -616,6 +721,7 @@ export function buildDashboardGraphEdges(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): WorkspaceGraphEdge[] {
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
   const edges: WorkspaceGraphEdge[] = visibleTopLevelNodes.map((nodeId) => ({
@@ -623,6 +729,7 @@ export function buildDashboardGraphEdges(
     to: nodeId,
   }));
   const visibleFavoriteCustomers = favoriteCustomers(customers);
+  const visibleDogContexts = dogContextDogs(dogs);
 
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
@@ -634,6 +741,18 @@ export function buildDashboardGraphEdges(
             : (childrenByParent.get(nodeId) ?? []);
 
       edges.push(...childNodes.map((node) => ({ from: nodeId, to: node.id })));
+    }
+  });
+
+  const isDogsVisible = canManageCustomerGraph(role) && expandedNodeIds.has('dogs');
+
+  if (isDogsVisible) {
+    edges.push(...visibleDogContexts.map((dog) => ({ from: 'dogs', to: dog.id })));
+  }
+
+  visibleDogContexts.forEach((dog) => {
+    if (isDogsVisible && expandedNodeIds.has(dog.id)) {
+      edges.push(...dogActionNodes(dog).map((node) => ({ from: dog.id, to: node.id })));
     }
   });
 
@@ -664,6 +783,7 @@ export function hasDashboardGraphChildren(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogInstance[] = [],
 ): boolean {
   if (nodeId === 'customers' || nodeId === 'dogs') {
     return canManageCustomerGraph(role) || nodeId === 'customers';
@@ -673,5 +793,9 @@ export function hasDashboardGraphChildren(
     return canManageCustomerGraph(role);
   }
 
-  return childrenByParent.has(nodeId) || !!customerByNodeId(nodeId, favoriteCustomers(customers));
+  return (
+    childrenByParent.has(nodeId) ||
+    !!customerByNodeId(nodeId, favoriteCustomers(customers)) ||
+    !!dogContextDogs(dogs).find((dog) => dog.id === nodeId)
+  );
 }
