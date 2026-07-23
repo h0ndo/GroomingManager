@@ -33,9 +33,39 @@ const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
 const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
 const DOG_CONTEXT_LIMIT = 6;
-const DOG_CONTEXT_NODE_DISTANCE = 260;
-const DOG_CONTEXT_START_ANGLE = 90;
-const DOG_CONTEXT_END_ANGLE = 210;
+const DOG_CONTEXT_LAYOUTS_BY_COUNT: Record<number, { offset: number; distance: number }[]> = {
+  1: [{ offset: 90, distance: 340 }],
+  2: [
+    { offset: 75, distance: 340 },
+    { offset: 100, distance: 430 },
+  ],
+  3: [
+    { offset: 75, distance: 340 },
+    { offset: 90, distance: 470 },
+    { offset: 100, distance: 340 },
+  ],
+  4: [
+    { offset: 65, distance: 340 },
+    { offset: 80, distance: 470 },
+    { offset: 95, distance: 340 },
+    { offset: 105, distance: 470 },
+  ],
+  5: [
+    { offset: 65, distance: 340 },
+    { offset: 78, distance: 470 },
+    { offset: 90, distance: 340 },
+    { offset: 100, distance: 470 },
+    { offset: 105, distance: 620 },
+  ],
+  6: [
+    { offset: 65, distance: 340 },
+    { offset: 78, distance: 470 },
+    { offset: 90, distance: 340 },
+    { offset: 100, distance: 470 },
+    { offset: 105, distance: 620 },
+    { offset: 88, distance: 690 },
+  ],
+};
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
   'groomers',
@@ -356,14 +386,19 @@ function dogLabelLines(dog: DogInstance): string[] {
   return [truncateLabelLine(dog.name), truncateLabelLine(dog.customerLabel)];
 }
 
+function dogContextLayout(index: number, count: number): { offset: number; distance: number } {
+  const slotCount = Math.max(1, Math.min(count, DOG_CONTEXT_LIMIT));
+  const slots = DOG_CONTEXT_LAYOUTS_BY_COUNT[slotCount];
+
+  return slots[index] ?? slots[slots.length - 1];
+}
+
 function dogContextAngle(index: number, count: number): number {
-  if (count <= 1) {
-    return 150;
-  }
+  return (TOP_LEVEL_BASE_ANGLES.get('dogs') ?? 0) + dogContextLayout(index, count).offset;
+}
 
-  const step = (DOG_CONTEXT_END_ANGLE - DOG_CONTEXT_START_ANGLE) / (count - 1);
-
-  return DOG_CONTEXT_START_ANGLE + index * step;
+function dogContextDistance(index: number, count: number): number {
+  return dogContextLayout(index, count).distance;
 }
 
 function dogContextNode(dog: DogInstance, index: number, count: number): WorkspaceGraphNode {
@@ -374,7 +409,7 @@ function dogContextNode(dog: DogInstance, index: number, count: number): Workspa
     kind: 'instance',
     x: 745,
     y: 640,
-    layout: { angle: dogContextAngle(index, count), distance: DOG_CONTEXT_NODE_DISTANCE },
+    layout: { angle: dogContextAngle(index, count), distance: dogContextDistance(index, count) },
     icon: 'pi-heart',
     avatarUrl: dog.avatarUrl,
     payload: dog,
@@ -697,7 +732,7 @@ export function buildDashboardGraphNodes(
   if (isDogsVisible) {
     nodes.push(
       ...visibleDogContexts.map((dog, index) =>
-        dogContextNode(dog, index, visibleDogContexts.length),
+        withChildLayout('dogs', dogContextNode(dog, index, visibleDogContexts.length), topLevelLayout),
       ),
     );
   }

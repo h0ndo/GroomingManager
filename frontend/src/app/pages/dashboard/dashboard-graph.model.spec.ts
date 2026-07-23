@@ -335,20 +335,104 @@ describe('dashboard graph model', () => {
       },
     );
     const dogAddPosition = layout.get('dog-add')!;
+    const dogsPosition = layout.get('dogs')!;
+    const rootPosition = layout.get('start')!;
     const dogContextPositions = visibleDogs.map((dog) => layout.get(dog.id)!);
     const dogContextNodes = visibleDogs.map((dog) => nodes.find((node) => node.id === dog.id)!);
 
     expect(nodes.find((node) => node.id === 'dog-search')?.layout?.angle).toBe(310);
     expect(nodes.find((node) => node.id === 'dog-list')?.layout?.angle).toBe(0);
     expect(nodes.find((node) => node.id === 'dog-add')?.layout?.angle).toBe(50);
-    expect(dogContextNodes.map((node) => node.layout?.angle)).toEqual([90, 210]);
-    expect(dogContextNodes.every((node) => node.layout?.distance === 260)).toBeTrue();
+    expect(dogContextNodes.map((node) => node.layout?.angle)).toEqual([75, 100]);
+    expect(dogContextNodes.map((node) => node.layout?.distance)).toEqual([340, 430]);
     expect(dogContextNodes[0].labelLines).toEqual(['wau', 'Katja Gross']);
     expect(dogContextNodes[1].labelLines).toEqual(['kakkkkkk', 'Hans Wuest']);
     dogContextPositions.forEach((position) => {
+      expect(position.x).toBeGreaterThan(rootPosition.x + 40);
+      expect(position.y).toBeGreaterThan(dogsPosition.y);
       expect(
         Math.hypot(position.x - dogAddPosition.x, position.y - dogAddPosition.y),
       ).toBeGreaterThan(150);
+    });
+  });
+
+  it('keeps a single visible dog context below the Hunde parent instead of drifting toward root', () => {
+    const expandedNodeIds = new Set(['dogs']);
+    const nodes = buildDashboardGraphNodes([], expandedNodeIds, 'dogs', 'groomer', [visibleDogs[0]]);
+    const edges = buildDashboardGraphEdges([], expandedNodeIds, 'groomer', [visibleDogs[0]]);
+    const layout = computeRadialGraphLayout(
+      nodes.map((node) => ({
+        id: node.id,
+        type: node.kind,
+        preferredAngle: node.layout?.angle,
+        preferredDistance: node.layout?.distance,
+      })),
+      edges,
+      {
+        rootId: 'start',
+        center: { x: 520, y: 340 },
+        levelDistance: 190,
+        siblingAngle: 32,
+        rootStartAngle: 0,
+      },
+    );
+    const dogsPosition = layout.get('dogs')!;
+    const rootPosition = layout.get('start')!;
+    const dogPosition = layout.get('dog-wau')!;
+    const dogNode = nodes.find((node) => node.id === 'dog-wau')!;
+
+    expect(dogNode.layout?.angle).toBe(90);
+    expect(dogNode.layout?.distance).toBe(340);
+    expect(dogPosition.x).toBeGreaterThan(rootPosition.x + 80);
+    expect(dogPosition.y).toBeGreaterThan(dogsPosition.y + 250);
+    expect(Math.hypot(dogPosition.x - dogsPosition.x, dogPosition.y - dogsPosition.y)).toBeCloseTo(
+      340,
+      6,
+    );
+  });
+
+  it('keeps the maximum visible dog contexts in the Hunde lower sector with staggered radii', () => {
+    const sixDogs = Array.from({ length: 6 }, (_, index) => ({
+      id: `dog-${index + 1}`,
+      name: `Hund ${index + 1}`,
+      customerLabel: `Kunde ${index + 1}`,
+    }));
+    const expandedNodeIds = new Set(['dogs']);
+    const nodes = buildDashboardGraphNodes([], expandedNodeIds, 'dogs', 'groomer', sixDogs);
+    const edges = buildDashboardGraphEdges([], expandedNodeIds, 'groomer', sixDogs);
+    const layout = computeRadialGraphLayout(
+      nodes.map((node) => ({
+        id: node.id,
+        type: node.kind,
+        preferredAngle: node.layout?.angle,
+        preferredDistance: node.layout?.distance,
+      })),
+      edges,
+      {
+        rootId: 'start',
+        center: { x: 520, y: 340 },
+        levelDistance: 190,
+        siblingAngle: 32,
+        rootStartAngle: 0,
+      },
+    );
+    const dogsPosition = layout.get('dogs')!;
+    const rootPosition = layout.get('start')!;
+    const dogPositions = sixDogs.map((dog) => layout.get(dog.id)!);
+    const dogNodes = sixDogs.map((dog) => nodes.find((node) => node.id === dog.id)!);
+
+    expect(dogNodes.map((node) => node.layout?.angle)).toEqual([65, 78, 90, 100, 105, 88]);
+    expect(dogNodes.map((node) => node.layout?.distance)).toEqual([340, 470, 340, 470, 620, 690]);
+    dogPositions.forEach((position) => {
+      expect(position.x).toBeGreaterThan(rootPosition.x + 20);
+      expect(position.y).toBeGreaterThan(dogsPosition.y + 300);
+    });
+    dogPositions.forEach((position, index) => {
+      dogPositions.slice(index + 1).forEach((otherPosition) => {
+        expect(Math.hypot(position.x - otherPosition.x, position.y - otherPosition.y)).toBeGreaterThan(
+          120,
+        );
+      });
     });
   });
 
