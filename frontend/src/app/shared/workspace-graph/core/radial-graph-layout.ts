@@ -28,6 +28,11 @@ export type RadialGraphLayoutPosition = RadialPoint & {
   depth: number;
 };
 
+type ChildPlacement = {
+  angle: number;
+  distance?: number;
+};
+
 const DEFAULT_CENTER: RadialPoint = { x: 0, y: 0 };
 const DEFAULT_LEVEL_DISTANCE = 170;
 const DEFAULT_SIBLING_ANGLE = 32;
@@ -60,10 +65,10 @@ export function computeRadialGraphLayout(
       return;
     }
 
-    const childAngles = isRoot
-      ? equalRootAngles(children.length, rootStartAngle)
-      : symmetricChildAngles(parentAngle, children.length, siblingAngle);
-    const resolvedChildAngles = resolveChildAngles(nodesById, children, childAngles);
+    const childPlacements = isRoot
+      ? equalRootAngles(children.length, rootStartAngle).map((angle) => ({ angle }))
+      : topLevelChildPlacements(parentAngle, children.length, levelDistance, siblingAngle, parentDepth);
+    const resolvedChildPlacements = resolveChildPlacements(nodesById, children, childPlacements);
 
     children.forEach((childId, index) => {
       if (positions.has(childId)) {
@@ -71,8 +76,9 @@ export function computeRadialGraphLayout(
       }
 
       const child = nodesById.get(childId);
-      const angle = resolvedChildAngles[index];
-      const childDistance = child?.preferredDistance ?? levelDistance;
+      const placement = resolvedChildPlacements[index];
+      const angle = placement.angle;
+      const childDistance = child?.preferredDistance ?? placement.distance ?? levelDistance;
       const childPosition = pointFrom(parentPosition, angle, childDistance);
       positions.set(childId, { ...childPosition, angle, depth: parentDepth + 1 });
       placeChildren(childId, angle, parentDepth + 1, false);
@@ -80,15 +86,20 @@ export function computeRadialGraphLayout(
   }
 }
 
-function resolveChildAngles(
+function resolveChildPlacements(
   nodesById: Map<string, RadialGraphNode>,
   childIds: string[],
-  fallbackAngles: number[],
-): number[] {
+  fallbackPlacements: ChildPlacement[],
+): ChildPlacement[] {
   return childIds.map((childId, index) => {
     const preferredAngle = nodesById.get(childId)?.preferredAngle;
+    const fallbackPlacement = fallbackPlacements[index];
 
-    return preferredAngle === undefined ? fallbackAngles[index] : normalizeAngle(preferredAngle);
+    return {
+      ...fallbackPlacement,
+      angle:
+        preferredAngle === undefined ? fallbackPlacement.angle : normalizeAngle(preferredAngle),
+    };
   });
 }
 
@@ -108,6 +119,50 @@ export function symmetricChildAngles(parentAngle: number, count: number, sibling
 
   const middle = (count - 1) / 2;
   return Array.from({ length: count }, (_, index) => normalizeAngle(parentAngle + (index - middle) * siblingAngle));
+}
+
+function topLevelChildPlacements(
+  parentAngle: number,
+  count: number,
+  levelDistance: number,
+  siblingAngle: number,
+  parentDepth: number,
+): ChildPlacement[] {
+  if (parentDepth !== 1) {
+    return symmetricChildAngles(parentAngle, count, siblingAngle).map((angle) => ({ angle }));
+  }
+
+  const firstRingDistance = Math.max(levelDistance, 205);
+  const secondRingDistance = Math.max(firstRingDistance + 125, 330);
+  const firstRingOffsets = topLevelChildAngleOffsets(Math.min(count, 7));
+  const secondRingOffsets = topLevelChildAngleOffsets(count - firstRingOffsets.length).map(
+    (offset) => offset + 180,
+  );
+
+  return [
+    ...firstRingOffsets.map((offset) => ({
+      angle: normalizeAngle(parentAngle + offset),
+      distance: firstRingDistance,
+    })),
+    ...secondRingOffsets.map((offset) => ({
+      angle: normalizeAngle(parentAngle + offset),
+      distance: secondRingDistance,
+    })),
+  ];
+}
+
+function topLevelChildAngleOffsets(count: number): number[] {
+  const offsetsByCount: Record<number, number[]> = {
+    1: [0],
+    2: [-50, 50],
+    3: [-70, 0, 70],
+    4: [-90, -30, 30, 90],
+    5: [-110, -55, 0, 55, 110],
+    6: [-120, -72, -24, 24, 72, 120],
+    7: [-130, -88, -46, 0, 46, 88, 130],
+  };
+
+  return offsetsByCount[count] ?? [];
 }
 
 function buildChildrenByParent(edges: RadialGraphEdge[], nodeIds: Set<string>): Map<string, string[]> {

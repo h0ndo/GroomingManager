@@ -290,6 +290,66 @@ describe('WorkspaceGraph', () => {
     );
   });
 
+  it('recomputes a moved top-level parent child zone without sibling collisions in custom flex mode', () => {
+    const childNodes: WorkspaceGraphNode[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `customer-child-${index + 1}`,
+      label: `Kind ${index + 1}`,
+      kind: 'action',
+    }));
+    const graphNodes: WorkspaceGraphNode[] = [
+      { id: 'start', label: 'Start', kind: 'root' },
+      { id: 'customers', label: 'Kunden', kind: 'domain', layout: { angle: 0 } },
+      ...childNodes,
+    ];
+    const graphEdges: WorkspaceGraphEdge[] = [
+      { from: 'start', to: 'customers' },
+      ...childNodes.map((node) => ({ from: 'customers', to: node.id })),
+    ];
+
+    fixture.componentRef.setInput('nodes', graphNodes);
+    fixture.componentRef.setInput('edges', graphEdges);
+    fixture.componentRef.setInput('autoLayout', true);
+    fixture.componentRef.setInput('lockAnchoredNodesToAutoLayout', false);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as unknown as WorkspaceGraphTestHost;
+    const originalParentPosition = component.nodePosition(graphNodes[1]);
+    const originalChildPositions = childNodes.map((node) => component.nodePosition(node));
+    const originalOffsets = originalChildPositions.map((position) => ({
+      x: position.x - originalParentPosition.x,
+      y: position.y - originalParentPosition.y,
+    }));
+    const movedParentPosition = {
+      x: originalParentPosition.x - 160,
+      y: originalParentPosition.y + 130,
+    };
+
+    component.nodePositions.set({
+      customers: movedParentPosition,
+      'customer-child-1': { x: 999, y: 999 },
+    });
+
+    const movedChildPositions = childNodes.map((node) => component.nodePosition(node));
+    const movedOffsets = movedChildPositions.map((position) => ({
+      x: position.x - movedParentPosition.x,
+      y: position.y - movedParentPosition.y,
+    }));
+    const siblingDistances = movedChildPositions.flatMap((position, index) =>
+      movedChildPositions
+        .slice(index + 1)
+        .map((otherPosition) => Math.hypot(position.x - otherPosition.x, position.y - otherPosition.y)),
+    );
+
+    movedOffsets.forEach((offset, index) => {
+      expect(offset.x).toBeCloseTo(originalOffsets[index].x, 5);
+      expect(offset.y).toBeCloseTo(originalOffsets[index].y, 5);
+      expect(Math.hypot(offset.x, offset.y)).toBeGreaterThan(180);
+      expect(Math.hypot(offset.x, offset.y)).toBeLessThan(335);
+    });
+    expect(Math.min(...siblingDistances)).toBeGreaterThan(120);
+    expect(movedChildPositions[0]).not.toEqual({ x: 999, y: 999 });
+  });
+
   it('keeps six favorite instance nodes readable around the favorites context and follows moved parent nodes', () => {
     const graphNodes: WorkspaceGraphNode[] = [
       { id: 'start', label: 'Start', kind: 'root' },
