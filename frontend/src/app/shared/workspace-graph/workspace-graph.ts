@@ -22,6 +22,8 @@ export type WorkspaceGraphNode = {
   label: string;
   labelLines?: string[];
   kind: WorkspaceGraphNodeKind;
+  kindLabel?: string;
+  interactionHint?: string;
   x?: number;
   y?: number;
   layout?: {
@@ -395,7 +397,7 @@ export class WorkspaceGraph {
       instance: 'Kunden-Instanz',
     };
 
-    return kindLabels[node.kind];
+    return node.kindLabel ?? kindLabels[node.kind];
   }
 
   protected nodeStatusLabel(node: WorkspaceGraphNode): string {
@@ -441,6 +443,10 @@ export class WorkspaceGraph {
     }
 
     if (this.isNodeExpandable(node)) {
+      if (node.interactionHint) {
+        return node.interactionHint;
+      }
+
       if (node.kind === 'domain') {
         return 'Click, Enter oder Space öffnet bzw. schließt Unterknoten; es wird kein separates Fenster geöffnet';
       }

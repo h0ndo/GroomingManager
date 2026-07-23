@@ -175,6 +175,13 @@ describe('Dashboard', () => {
     httpTesting
       .match(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
       .forEach((request) => request.flush([]));
+    flushDogFavoritesIfRequested();
+  }
+
+  function flushDogFavoritesIfRequested(): void {
+    httpTesting
+      .match(`${runtimeConfig.apiBaseUrl}/dog-favorites`)
+      .forEach((request) => request.flush([]));
   }
 
   function flushCustomerSearch(
@@ -227,9 +234,17 @@ describe('Dashboard', () => {
       .match(`${runtimeConfig.apiBaseUrl}/customer-favorites`)
       .forEach((request) => request.flush([]));
     httpTesting
+      .match(`${runtimeConfig.apiBaseUrl}/dog-favorites`)
+      .forEach((request) => request.flush([]));
+    httpTesting
       .match(
         (request) =>
           request.url === `${runtimeConfig.apiBaseUrl}/customers` && request.method === 'GET',
+      )
+      .forEach((request) => request.flush([]));
+    httpTesting
+      .match(
+        (request) => request.url === `${runtimeConfig.apiBaseUrl}/dogs` && request.method === 'GET',
       )
       .forEach((request) => request.flush([]));
     httpTesting.verify();
@@ -1912,6 +1927,68 @@ describe('Dashboard', () => {
     expect(graphNodeLabels(fixture)).not.toContain('Mila Muster');
   }));
 
+
+  it('expands personal dog favorites at the Hunde node and removes a dog favorite by action node', fakeAsync(() => {
+    fixture.detectChanges();
+    httpTesting
+      .expectOne(`${runtimeConfig.apiBaseUrl}/status`)
+      .flush({ status: 'UP', service: 'backend' });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/me`).flush({
+      username: 'groomer@grooming-manager.local',
+      roles: ['ROLE_groomer'],
+    });
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/customer-favorites`).flush([]);
+    httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/dog-favorites`).flush([
+      {
+        dogId: 21,
+        name: 'Nala',
+        customerId: 7,
+        customerName: 'Katja Gross',
+        breed: 'Labradoodle',
+        imageBase64: null,
+      },
+    ]);
+    fixture.detectChanges();
+
+    graphNodeButton(fixture, 'Hunde').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    graphNodeButton(fixture, 'Hundefavoriten').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const dogFavoriteNode = host.querySelector<HTMLButtonElement>('[data-node-id="dog-favorite-21"]');
+
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(graphNodeButton(fixture, 'Hundefavoriten').getAttribute('aria-expanded')).toBe('true');
+    expect(dogFavoriteNode).not.toBeNull();
+    expect(dogFavoriteNode?.textContent).toContain('Nala');
+    expect(dogFavoriteNode?.textContent).toContain('Katja Gross');
+    expect(dogFavoriteNode?.getAttribute('aria-label')).toContain('Hundefavoriten-Instanz');
+
+    dogFavoriteNode!.click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(dogFavoriteNode!.getAttribute('aria-expanded')).toBe('true');
+    expect(graphNodeLabels(fixture)).toEqual(
+      jasmine.arrayContaining(['Details', 'Favorit entfernen']),
+    );
+
+    graphNodeButton(fixture, 'Favorit entfernen').click();
+    const removeRequest = httpTesting.expectOne(`${runtimeConfig.apiBaseUrl}/dog-favorites/21`);
+    expect(removeRequest.request.method).toBe('DELETE');
+    removeRequest.flush(null);
+    fixture.detectChanges();
+
+    expect(host.textContent).toContain('Nala wurde aus deinen persönlichen Hundefavoriten entfernt.');
+    expect(host.querySelector('[data-node-id="dog-favorite-21"]')).toBeNull();
+  }));
+
   it('hides groomer/admin customer search and favorites for the customer role', () => {
     auth.setRoles(['ROLE_kunde']);
 
@@ -1954,7 +2031,7 @@ describe('Dashboard', () => {
     buttonByText(fixture, 'Alles aufklappen').click();
     fixture.detectChanges();
 
-    expect(graphNodeLabels(fixture).length).toBe(29);
+    expect(graphNodeLabels(fixture).length).toBe(31);
     expect(graphNodeLabels(fixture)).toContain('Groomer hinzufügen');
 
     buttonByText(fixture, 'Focused Work').click();

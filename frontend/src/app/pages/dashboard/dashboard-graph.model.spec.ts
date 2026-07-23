@@ -8,6 +8,7 @@ import {
   isDashboardGraphFullyExpanded,
   isFunctionalDashboardGraphNode,
   type CustomerInstance,
+  type DogFavoriteInstance,
 } from './dashboard-graph.model';
 
 const favoriteCustomers: CustomerInstance[] = [
@@ -18,6 +19,22 @@ const favoriteCustomers: CustomerInstance[] = [
     avatarUrl: '/avatars/katja.png',
   },
   { id: 'customer-alex-sommer', firstName: 'Alex', lastName: 'Sommer' },
+];
+
+const favoriteDogs: DogFavoriteInstance[] = [
+  {
+    id: 'dog-nala',
+    name: 'Nala',
+    customerId: 'customer-katja-gross',
+    customerName: 'Katja Gross',
+    breed: 'Labradoodle',
+  },
+  {
+    id: 'dog-bruno',
+    name: 'Bruno',
+    customerId: 'customer-alex-sommer',
+    customerName: 'Alex Sommer',
+  },
 ];
 
 describe('dashboard graph model', () => {
@@ -340,6 +357,7 @@ describe('dashboard graph model', () => {
       'customers',
       'customer-favorites',
       'dogs',
+      'dog-favorites',
     ]);
 
     expect(expandableDashboardGraphNodeIds(favoriteCustomers)).toEqual([
@@ -349,6 +367,7 @@ describe('dashboard graph model', () => {
       'customers',
       'customer-favorites',
       'dogs',
+      'dog-favorites',
       'customer-katja-gross',
       'customer-alex-sommer',
     ]);
@@ -368,7 +387,7 @@ describe('dashboard graph model', () => {
     expect(
       isDashboardGraphFullyExpanded(
         [],
-        new Set(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites']),
+        new Set(['groomers', 'calendar', 'admin', 'customers', 'dogs', 'customer-favorites', 'dog-favorites']),
       ),
     ).toBeTrue();
     expect(isDashboardGraphFullyExpanded([], new Set(['groomers', 'calendar']))).toBeFalse();
@@ -382,11 +401,59 @@ describe('dashboard graph model', () => {
           'admin',
           'customers',
           'dogs',
+          'dog-favorites',
           'customer-favorites',
           'customer-katja-gross',
           'customer-alex-sommer',
         ]),
       ),
     ).toBeTrue();
+  });
+
+
+  it('expands Hundefavoriten as dog instance context nodes with customer references', () => {
+    const expandedNodeIds = new Set(['dogs', 'dog-favorites', 'dog-favorite-dog-nala']);
+    const nodes = buildDashboardGraphNodes([], expandedNodeIds, undefined, 'groomer', favoriteDogs);
+    const edges = buildDashboardGraphEdges([], expandedNodeIds, 'groomer', favoriteDogs);
+
+    expect(nodes.find((node) => node.id === 'dog-favorites')).toEqual(
+      jasmine.objectContaining({
+        label: 'Hundefavoriten',
+        kind: 'domain',
+      }),
+    );
+    expect(nodes.find((node) => node.id === 'dog-favorites')).not.toEqual(
+      jasmine.objectContaining({ action: jasmine.anything() }),
+    );
+    expect(nodes.find((node) => node.id === 'dog-favorite-dog-nala')).toEqual(
+      jasmine.objectContaining({
+        kind: 'instance',
+        label: 'Nala · Katja Gross',
+        labelLines: ['Nala', 'Katja Gross'],
+        payload: favoriteDogs[0],
+      }),
+    );
+    expect(isFunctionalDashboardGraphNode(nodes.find((node) => node.id === 'dog-favorite-dog-nala')!)).toBeFalse();
+    expect(nodes.map((node) => node.id)).toEqual(
+      jasmine.arrayContaining([
+        'dog-list',
+        'dog-add',
+        'dog-favorites',
+        'dog-favorite-dog-nala',
+        'dog-favorite-dog-nala-details',
+        'dog-favorite-dog-nala-remove',
+      ]),
+    );
+    expect(edges).toEqual(
+      jasmine.arrayContaining([
+        { from: 'dogs', to: 'dog-list' },
+        { from: 'dogs', to: 'dog-favorites' },
+        { from: 'dog-favorites', to: 'dog-favorite-dog-nala' },
+        { from: 'dog-favorite-dog-nala', to: 'dog-favorite-dog-nala-details' },
+        { from: 'dog-favorite-dog-nala', to: 'dog-favorite-dog-nala-remove' },
+      ]),
+    );
+    expect(hasDashboardGraphChildren('dog-favorites', [], 'groomer', favoriteDogs)).toBeTrue();
+    expect(hasDashboardGraphChildren('dog-favorite-dog-nala', [], 'groomer', favoriteDogs)).toBeTrue();
   });
 });

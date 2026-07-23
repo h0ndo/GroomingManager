@@ -240,7 +240,42 @@
             }
           }
           @case ('list') {
-            @if (workPage.sourceNodeId === 'customer-list') {
+            @if (workPage.sourceNodeId === 'dog-list') {
+              <div class="dog-list-work-page" aria-label="Hundeliste mit persönlichen Favoriten">
+                <div class="work-page-list-stub__items" role="list" aria-label="Hunde mit Kundenbezug">
+                  @for (dog of dogListItems(); track dog.id) {
+                    <article class="work-page-search__item" role="listitem">
+                      <button
+                        type="button"
+                        class="work-page-search__profile"
+                        [attr.aria-label]="dog.name + ', gehört zu ' + dog.customerName + ', Hundeprofil öffnen'"
+                        (click)="selectedDogFavorite.set(dog)"
+                      >
+                        <strong>{{ dog.name }}</strong>
+                        <small>{{ dog.customerName }}</small>
+                        <span class="work-page-search__favorite-state">{{ dogFavoriteStatusLabel(dog) }}</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="favorite-toggle"
+                        [disabled]="isFavoriteDogOperationBusy(dog)"
+                        [attr.aria-pressed]="isFavoriteDog(dog)"
+                        [attr.aria-label]="dog.name + ': ' + dogFavoriteActionLabel(dog)"
+                        (click)="toggleFavoriteDog(dog, $event)"
+                      >
+                        <span class="pi" [class.pi-star-fill]="isFavoriteDog(dog)" [class.pi-star]="!isFavoriteDog(dog)" aria-hidden="true"></span>
+                        {{ dogFavoriteActionLabel(dog) }}
+                      </button>
+                    </article>
+                  } @empty {
+                    <p class="work-page-search__empty" role="status">Noch keine Hunde in der Liste gefunden.</p>
+                  }
+                </div>
+                @if (dogFavoriteStatusMessage()) {
+                  <p class="favorite-status" role="status">{{ dogFavoriteStatusMessage() }}</p>
+                }
+              </div>
+            } @else if (workPage.sourceNodeId === 'customer-list') {
               <div class="customer-list-work-page" aria-label="Kundenliste mit 30er-Paginierung">
                 <p-table
                   class="customer-list-table"
@@ -329,7 +364,39 @@
             </div>
           }
           @case ('detail') {
-            @if (selectedCustomer(); as customer) {
+            @if (selectedDogFavorite(); as dog) {
+              <article
+                id="dogProfileReadMode"
+                class="customer-profile-read dog-profile-read"
+                tabindex="-1"
+                [attr.aria-label]="dog.name + ' Hundeprofil im Lesemodus'"
+              >
+                <dl class="customer-profile-read__fields">
+                  <div>
+                    <dt>Hund</dt>
+                    <dd>{{ dog.name }}</dd>
+                  </div>
+                  <div>
+                    <dt>Kund:in</dt>
+                    <dd>{{ dog.customerName }}</dd>
+                  </div>
+                  <div>
+                    <dt>Rasse</dt>
+                    <dd>{{ customerProfileFieldValue(dog.breed) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Größe</dt>
+                    <dd>{{ customerProfileFieldValue(dog.size) }}</dd>
+                  </div>
+                </dl>
+                @if (dog.groomingNotes) {
+                  <p class="customer-profile-read__note">{{ dog.groomingNotes }}</p>
+                }
+                @if (dogFavoriteStatusMessage()) {
+                  <p class="favorite-status" role="status">{{ dogFavoriteStatusMessage() }}</p>
+                }
+              </article>
+            } @else if (selectedCustomer(); as customer) {
               <article
                 id="customerProfileReadMode"
                 class="customer-profile-read"

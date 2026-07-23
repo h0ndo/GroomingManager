@@ -18,10 +18,25 @@ export type CustomerInstance = {
   name?: string;
 };
 
+export type DogFavoriteInstance = {
+  id: string;
+  name: string;
+  customerId?: string;
+  customerName: string;
+  breed?: string;
+  size?: string;
+  groomingNotes?: string;
+  avatarUrl?: string;
+};
+
 const CUSTOMER_FAVORITES_NODE_ID = 'customer-favorites';
+const DOG_FAVORITES_NODE_ID = 'dog-favorites';
 const CUSTOMER_FAVORITE_LIMIT = 6;
+const DOG_FAVORITE_LIMIT = 6;
 const CUSTOMER_FAVORITE_NODE_DISTANCE = 190;
+const DOG_FAVORITE_NODE_DISTANCE = 180;
 const CUSTOMER_LABEL_LINE_MAX_LENGTH = 13;
+const DOG_LABEL_LINE_MAX_LENGTH = 13;
 const TOP_LEVEL_NODE_IDS = [
   'groomers',
   'calendar',
@@ -252,6 +267,27 @@ const customerManagerNodes: WorkspaceGraphNode[] = [
 
 const dogManagerNodes: WorkspaceGraphNode[] = [
   {
+    id: 'dog-list',
+    label: 'Hundeliste',
+    kind: 'action',
+    x: 735,
+    y: 455,
+    layout: { angle: 285 },
+    icon: 'pi-list',
+    action: 'custom',
+    description: 'Hunde suchen, Kundenbezug prüfen und Hunde als persönliche Favoriten markieren.',
+  },
+  {
+    id: DOG_FAVORITES_NODE_ID,
+    label: 'Hundefavoriten',
+    kind: 'domain',
+    x: 790,
+    y: 515,
+    layout: { angle: 310 },
+    icon: 'pi-star',
+    description: `Kontextknoten für bis zu ${DOG_FAVORITE_LIMIT} persönliche Hundefavoriten. Sichtbar für Admins und Groomer.`,
+  },
+  {
     id: 'dog-add',
     label: 'Hund hinzufügen',
     kind: 'action',
@@ -293,6 +329,10 @@ function favoriteCustomers(customers: readonly CustomerInstance[]): CustomerInst
   return customers.slice(0, CUSTOMER_FAVORITE_LIMIT);
 }
 
+function favoriteDogs(dogs: readonly DogFavoriteInstance[]): DogFavoriteInstance[] {
+  return dogs.slice(0, DOG_FAVORITE_LIMIT);
+}
+
 function customerLabelLines(customer: CustomerInstance): string[] {
   const nameParts = [customer.firstName, customer.lastName]
     .map((namePart) => namePart.trim())
@@ -305,12 +345,12 @@ function customerLabelLines(customer: CustomerInstance): string[] {
   return [truncateLabelLine(customer.name?.trim() || 'Kunde')];
 }
 
-function truncateLabelLine(labelLine: string): string {
-  if (labelLine.length <= CUSTOMER_LABEL_LINE_MAX_LENGTH) {
+function truncateLabelLine(labelLine: string, maxLength = CUSTOMER_LABEL_LINE_MAX_LENGTH): string {
+  if (labelLine.length <= maxLength) {
     return labelLine;
   }
 
-  return `${labelLine.slice(0, CUSTOMER_LABEL_LINE_MAX_LENGTH - 1)}…`;
+  return `${labelLine.slice(0, maxLength - 1)}…`;
 }
 
 function customerInstanceNode(customer: CustomerInstance): WorkspaceGraphNode {
@@ -469,12 +509,91 @@ function customerByNodeId(
   return customers.find((customer) => customer.id === nodeId);
 }
 
+function dogFavoriteNodeId(dog: DogFavoriteInstance): string {
+  return `dog-favorite-${dog.id}`;
+}
+
+function dogFavoriteIdFromNodeId(nodeId: string): string {
+  return nodeId.replace(/^dog-favorite-/, '');
+}
+
+function dogByNodeId(
+  nodeId: string,
+  dogs: readonly DogFavoriteInstance[],
+): DogFavoriteInstance | undefined {
+  const dogId = dogFavoriteIdFromNodeId(nodeId);
+
+  return dogs.find((dog) => dog.id === dogId || dogFavoriteNodeId(dog) === nodeId);
+}
+
+export function dogDisplayName(dog: DogFavoriteInstance): string {
+  return dog.name.trim() || 'Hund';
+}
+
+function dogLabelLines(dog: DogFavoriteInstance): string[] {
+  return [
+    truncateLabelLine(dogDisplayName(dog), DOG_LABEL_LINE_MAX_LENGTH),
+    truncateLabelLine(dog.customerName.trim() || 'Kund:in unbekannt', DOG_LABEL_LINE_MAX_LENGTH),
+  ];
+}
+
+function dogFavoriteNode(dog: DogFavoriteInstance): WorkspaceGraphNode {
+  return {
+    id: dogFavoriteNodeId(dog),
+    label: `${dogDisplayName(dog)} · ${dog.customerName || 'Kund:in unbekannt'}`,
+    labelLines: dogLabelLines(dog),
+    kind: 'instance',
+    kindLabel: 'Hundefavoriten-Instanz',
+    interactionHint:
+      'Click, Enter oder Space öffnet bzw. schließt angehängte Aktionsknoten; der Hundefavorit öffnet kein Profil und kein separates Fenster',
+    x: 850,
+    y: 570,
+    layout: { distance: DOG_FAVORITE_NODE_DISTANCE },
+    icon: 'pi-heart',
+    avatarUrl: dog.avatarUrl,
+    payload: dog,
+    description: 'Persönlicher Hundefavorit als Kontextknoten mit Details- und Entfernen-Aktion',
+  };
+}
+
+function dogActionNodes(dog: DogFavoriteInstance): WorkspaceGraphNode[] {
+  return [
+    {
+      id: `${dogFavoriteNodeId(dog)}-details`,
+      label: 'Details',
+      kind: 'action',
+      x: 915,
+      y: 430,
+      icon: 'pi-id-card',
+      action: 'custom',
+      payload: dog,
+      description: `Hundeprofil von ${dogDisplayName(dog)} ansehen`,
+    },
+    {
+      id: `${dogFavoriteNodeId(dog)}-remove`,
+      label: 'Favorit entfernen',
+      kind: 'action',
+      x: 1015,
+      y: 555,
+      icon: 'pi-star-fill',
+      action: 'custom',
+      payload: dog,
+      description: `${dogDisplayName(dog)} aus deinen persönlichen Hundefavoriten entfernen`,
+    },
+  ];
+}
+
 export function isTopLevelDashboardGraphNode(nodeId: string): boolean {
   return isTopLevelNodeId(nodeId);
 }
 
 export function isFunctionalDashboardGraphNode(node: WorkspaceGraphNode): boolean {
-  if (node.id === 'start' || node.id === CUSTOMER_FAVORITES_NODE_ID || isTopLevelNodeId(node.id)) {
+  if (
+    node.id === 'start' ||
+    node.id === CUSTOMER_FAVORITES_NODE_ID ||
+    node.id === DOG_FAVORITES_NODE_ID ||
+    isTopLevelNodeId(node.id)
+  ) {
     return false;
   }
 
@@ -493,6 +612,7 @@ export function isDashboardGraphWorkFocusNode(node: WorkspaceGraphNode): boolean
 export function expandableDashboardGraphNodeIds(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): string[] {
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
 
@@ -502,7 +622,9 @@ export function expandableDashboardGraphNodeIds(
 
   return [
     ...visibleTopLevelNodes,
+    DOG_FAVORITES_NODE_ID,
     ...favoriteCustomers(customers).map((customer) => customer.id),
+    ...favoriteDogs(dogs).map((dog) => dogFavoriteNodeId(dog)),
   ];
 }
 
@@ -510,8 +632,9 @@ export function isDashboardGraphFullyExpanded(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): boolean {
-  return expandableDashboardGraphNodeIds(customers, role).every((nodeId) =>
+  return expandableDashboardGraphNodeIds(customers, role, dogs).every((nodeId) =>
     expandedNodeIds.has(nodeId),
   );
 }
@@ -520,9 +643,10 @@ export function dashboardGraphDescendantNodeIds(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): string[] {
-  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
-  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role, dogs));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role, dogs);
   const descendants: string[] = [];
   const pendingNodeIds = [nodeId];
 
@@ -544,9 +668,10 @@ export function dashboardGraphSiblingSubtreeNodeIds(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): string[] {
-  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role));
-  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role);
+  const fullyExpandedNodeIds = new Set(expandableDashboardGraphNodeIds(customers, role, dogs));
+  const edges = buildDashboardGraphEdges(customers, fullyExpandedNodeIds, role, dogs);
   const parentNodeIds = edges
     .filter((edge) => edge.to === nodeId)
     .map((edge) => edge.from);
@@ -558,7 +683,7 @@ export function dashboardGraphSiblingSubtreeNodeIds(
       .map((edge) => edge.to)
       .forEach((siblingNodeId) => {
         subtreeNodeIds.add(siblingNodeId);
-        dashboardGraphDescendantNodeIds(siblingNodeId, customers, role).forEach(
+        dashboardGraphDescendantNodeIds(siblingNodeId, customers, role, dogs).forEach(
           (descendantNodeId) => subtreeNodeIds.add(descendantNodeId),
         );
       });
@@ -572,6 +697,7 @@ export function buildDashboardGraphNodes(
   expandedNodeIds: ReadonlySet<string>,
   focusedTopLevelNodeId?: string,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): WorkspaceGraphNode[] {
   const topLevelLayout = topLevelLayoutById(focusedTopLevelNodeId);
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
@@ -582,6 +708,7 @@ export function buildDashboardGraphNodes(
       .map((node) => withTopLevelLayout(node, topLevelLayout)),
   ];
   const visibleFavoriteCustomers = favoriteCustomers(customers);
+  const visibleFavoriteDogs = favoriteDogs(dogs);
 
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
@@ -609,6 +736,21 @@ export function buildDashboardGraphNodes(
     }
   });
 
+  const isDogFavoritesVisible =
+    canManageCustomerGraph(role) && expandedNodeIds.has('dogs') && expandedNodeIds.has(DOG_FAVORITES_NODE_ID);
+
+  if (isDogFavoritesVisible) {
+    nodes.push(...visibleFavoriteDogs.map((dog) => dogFavoriteNode(dog)));
+  }
+
+  visibleFavoriteDogs.forEach((dog) => {
+    const dogNodeId = dogFavoriteNodeId(dog);
+
+    if (isDogFavoritesVisible && expandedNodeIds.has(dogNodeId)) {
+      nodes.push(...dogActionNodes(dog));
+    }
+  });
+
   return nodes;
 }
 
@@ -616,6 +758,7 @@ export function buildDashboardGraphEdges(
   customers: readonly CustomerInstance[],
   expandedNodeIds: ReadonlySet<string>,
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): WorkspaceGraphEdge[] {
   const visibleTopLevelNodes = visibleTopLevelNodeIds(role);
   const edges: WorkspaceGraphEdge[] = visibleTopLevelNodes.map((nodeId) => ({
@@ -623,6 +766,7 @@ export function buildDashboardGraphEdges(
     to: nodeId,
   }));
   const visibleFavoriteCustomers = favoriteCustomers(customers);
+  const visibleFavoriteDogs = favoriteDogs(dogs);
 
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
@@ -657,6 +801,26 @@ export function buildDashboardGraphEdges(
     }
   });
 
+  const isDogFavoritesVisible =
+    canManageCustomerGraph(role) && expandedNodeIds.has('dogs') && expandedNodeIds.has(DOG_FAVORITES_NODE_ID);
+
+  if (isDogFavoritesVisible) {
+    edges.push(
+      ...visibleFavoriteDogs.map((dog) => ({
+        from: DOG_FAVORITES_NODE_ID,
+        to: dogFavoriteNodeId(dog),
+      })),
+    );
+  }
+
+  visibleFavoriteDogs.forEach((dog) => {
+    const dogNodeId = dogFavoriteNodeId(dog);
+
+    if (isDogFavoritesVisible && expandedNodeIds.has(dogNodeId)) {
+      edges.push(...dogActionNodes(dog).map((node) => ({ from: dogNodeId, to: node.id })));
+    }
+  });
+
   return edges;
 }
 
@@ -664,14 +828,19 @@ export function hasDashboardGraphChildren(
   nodeId: string,
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
+  dogs: readonly DogFavoriteInstance[] = [],
 ): boolean {
   if (nodeId === 'customers' || nodeId === 'dogs') {
     return canManageCustomerGraph(role) || nodeId === 'customers';
   }
 
-  if (nodeId === CUSTOMER_FAVORITES_NODE_ID) {
+  if (nodeId === CUSTOMER_FAVORITES_NODE_ID || nodeId === DOG_FAVORITES_NODE_ID) {
     return canManageCustomerGraph(role);
   }
 
-  return childrenByParent.has(nodeId) || !!customerByNodeId(nodeId, favoriteCustomers(customers));
+  return (
+    childrenByParent.has(nodeId) ||
+    !!customerByNodeId(nodeId, favoriteCustomers(customers)) ||
+    !!dogByNodeId(nodeId, favoriteDogs(dogs))
+  );
 }

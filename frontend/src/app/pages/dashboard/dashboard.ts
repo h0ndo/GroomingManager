@@ -23,6 +23,7 @@ import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,
   customerDisplayName,
+  dogDisplayName,
   dashboardGraphDescendantNodeIds,
   dashboardGraphSiblingSubtreeNodeIds,
   expandableDashboardGraphNodeIds,
@@ -33,6 +34,7 @@ import {
   isTopLevelDashboardGraphNode,
   type DashboardGraphRole,
   type CustomerInstance,
+  type DogFavoriteInstance,
 } from './dashboard-graph.model';
 
 type MeResponse = {
@@ -49,6 +51,22 @@ type CustomerFavoriteDto = {
   phone?: string | null;
   communicationNotes?: string | null;
   profileImageBase64?: string | null;
+};
+
+type DogFavoriteDto = {
+  dogId?: number | null;
+  petId?: number | null;
+  id?: number | null;
+  name?: string | null;
+  dogName?: string | null;
+  customerId?: number | null;
+  customerName?: string | null;
+  customerDisplayName?: string | null;
+  ownerDisplayName?: string | null;
+  breed?: string | null;
+  size?: string | null;
+  groomingNotes?: string | null;
+  imageBase64?: string | null;
 };
 
 type CustomerDto = {
@@ -140,6 +158,8 @@ type CustomerListItem = {
   avatarUrl?: string;
 };
 
+type DogListItem = DogFavoriteInstance;
+
 type AgendaItem = {
   time: string;
   title: string;
@@ -181,8 +201,11 @@ export class Dashboard implements OnInit {
   protected readonly layoutMode = signal<WorkspaceLayoutMode>('focused-work');
   protected readonly selectedCustomer = signal<CustomerInstance | null>(null);
   protected readonly favoriteCustomers = signal<CustomerInstance[]>([]);
+  protected readonly favoriteDogs = signal<DogFavoriteInstance[]>([]);
   protected readonly favoriteStatusMessage = signal('');
+  protected readonly dogFavoriteStatusMessage = signal('');
   protected readonly favoriteOperationBusyCustomerIds = signal<ReadonlySet<string>>(new Set());
+  protected readonly favoriteOperationBusyDogIds = signal<ReadonlySet<string>>(new Set());
   protected readonly newCustomerName = signal('');
   protected readonly customerCreateBusy = signal(false);
   protected readonly customerCreateError = signal('');
@@ -201,6 +224,11 @@ export class Dashboard implements OnInit {
   protected readonly dogCreateError = signal('');
   protected readonly dogCreateStatusMessage = signal('');
   protected readonly dogImageError = signal('');
+  protected readonly selectedDogFavorite = signal<DogFavoriteInstance | null>(null);
+  protected readonly dogListItems = signal<DogListItem[]>([]);
+  protected readonly dogListBusy = signal(false);
+  protected readonly dogListError = signal('');
+  protected readonly dogListFetchLimit = 100;
   protected readonly dogForm = signal<PetFormState>(this.emptyPetForm());
   protected readonly dogSelectedCustomer = signal<CustomerInstance | null>(null);
   protected readonly dogCustomerSearchTerm = signal('');
@@ -331,10 +359,11 @@ export class Dashboard implements OnInit {
       this.expandedNodeIds(),
       this.layoutMode() === 'focused-work' ? this.focusedTopLevelNodeId() : undefined,
       this.graphRole(),
+      this.favoriteDogs(),
     ),
   );
   protected readonly graphEdges = computed(() =>
-    buildDashboardGraphEdges(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole()),
+    buildDashboardGraphEdges(this.favoriteCustomers(), this.expandedNodeIds(), this.graphRole(), this.favoriteDogs()),
   );
   protected readonly hasActiveWorkPage = computed(() => this.activeWorkPage() !== null);
   protected readonly graphInteractionLocked = computed(() => this.hasActiveWorkPage());
@@ -358,7 +387,7 @@ export class Dashboard implements OnInit {
   protected readonly presentedExpandableNodeIds = computed(
     () =>
       this.lockedGraphPresentation()?.expandableNodeIds ??
-      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole(), this.favoriteDogs()),
   );
   protected readonly presentedLockAnchoredNodesToAutoLayout = computed(
     () =>
@@ -382,6 +411,7 @@ export class Dashboard implements OnInit {
       this.http.get<MeResponse>(`${runtimeConfig.apiBaseUrl}/me`).subscribe((me) => {
         this.me.set(me);
         this.loadCustomerFavorites();
+        this.loadDogFavorites();
       });
     }
   }
@@ -396,6 +426,7 @@ export class Dashboard implements OnInit {
       node.id,
       this.favoriteCustomers(),
       this.graphRole(),
+      this.favoriteDogs(),
     );
     const isStructuralNode = hasChildren && !isFunctionalDashboardGraphNode(node);
     const canBecomeWorkFocus = this.canBecomeActiveWorkFocus(node);
@@ -438,6 +469,19 @@ export class Dashboard implements OnInit {
 
     if (hasChildren) {
       this.toggleExpandedNode(node.id);
+    }
+
+    if (node.id === 'dog-list') {
+      this.openDogListWorkPage(node, selection.sourceOrigin);
+      this.workspacePanel.set({
+        mode: 'list',
+        eyebrow: 'Hundeaktion',
+        title: 'Hundeliste geöffnet',
+        description:
+          'Die Hundeliste zeigt Hunde mit Kundenbezug. Von hier können Groomer/Admins persönliche Hundefavoriten setzen.',
+        node,
+      });
+      return;
     }
 
     if (node.id === 'customer-list') {
@@ -508,6 +552,43 @@ export class Dashboard implements OnInit {
       return;
     }
 
+    if (node.id.endsWith('-details')) {
+      const dog = this.dogFromNode(node);
+
+      if (dog) {
+        this.selectedDogFavorite.set(dog);
+        this.openDogDetailReadPage(dog, node, selection.sourceOrigin);
+      }
+
+      this.workspacePanel.set({
+        mode: 'profile',
+        eyebrow: 'Hundeprofil',
+        title: dog ? `${dogDisplayName(dog)} ansehen` : 'Hund ansehen',
+        description:
+          'Das Hundeprofil ist eine Work-Page-Aktion am konkreten Hundefavoriten; der Favoritenknoten selbst bleibt Kontext.',
+        node,
+      });
+      return;
+    }
+
+    if (node.id.endsWith('-remove')) {
+      const dog = this.dogFromNode(node);
+
+      this.removeFavoriteDog(dog);
+      this.selectedDogFavorite.set(null);
+      this.activeNodeId.set('dog-favorites');
+      this.workspacePanel.set({
+        mode: 'overview',
+        eyebrow: 'Hundefavorit',
+        title: 'Hundefavorit entfernt',
+        description: dog
+          ? `${dogDisplayName(dog)} wurde aus deinen persönlichen Hundefavoriten entfernt.`
+          : 'Der Hundefavorit wurde entfernt.',
+        node,
+      });
+      return;
+    }
+
     if (node.id.endsWith('-profile')) {
       const customer = this.customerFromNode(node) ?? this.selectedCustomer();
 
@@ -572,6 +653,21 @@ export class Dashboard implements OnInit {
     }
 
     if (node.kind === 'instance') {
+      const dog = this.dogFromNode(node);
+
+      if (dog) {
+        this.selectedDogFavorite.set(dog);
+        this.workspacePanel.set({
+          mode: 'selected',
+          eyebrow: 'Hundefavorit',
+          title: `${dogDisplayName(dog)} ausgewählt`,
+          description:
+            'Der Hundefavorit ist ein Kontextknoten. Klappe Details oder Favorit entfernen explizit als Aktionsknoten auf.',
+          node,
+        });
+        return;
+      }
+
       const customer = this.customerFromNode(node);
 
       if (customer) {
@@ -777,6 +873,7 @@ export class Dashboard implements OnInit {
           const customerLabel = customer ? customerDisplayName(customer) : 'der gewählten Kund:in';
 
           this.dogCreateStatusMessage.set(`${createdPet.name} wurde für ${customerLabel} gespeichert.`);
+          this.pinFavoriteDogLocally(this.dogInstanceFromDto(createdPet, customer));
           if (customer) {
             this.pinFavoriteCustomerLocally(customer);
             this.selectedCustomer.set(customer);
@@ -914,6 +1011,22 @@ export class Dashboard implements OnInit {
     return this.favoriteOperationBusyCustomerIds().has(customer.id);
   }
 
+  protected isFavoriteDog(dog: DogFavoriteInstance | DogListItem): boolean {
+    return this.favoriteDogs().some((favorite) => favorite.id === dog.id);
+  }
+
+  protected dogFavoriteActionLabel(dog: DogFavoriteInstance | DogListItem): string {
+    return this.isFavoriteDog(dog) ? 'Aus Hundefavoriten entfernen' : 'Als Hundefavorit anheften';
+  }
+
+  protected dogFavoriteStatusLabel(dog: DogFavoriteInstance | DogListItem): string {
+    return this.isFavoriteDog(dog) ? 'Persönlicher Hundefavorit' : 'Nicht angeheftet';
+  }
+
+  protected isFavoriteDogOperationBusy(dog: DogFavoriteInstance | DogListItem): boolean {
+    return this.favoriteOperationBusyDogIds().has(dog.id);
+  }
+
   protected customerProfileFieldValue(value: string | undefined): string {
     return value?.trim() || 'Nicht hinterlegt';
   }
@@ -974,6 +1087,34 @@ export class Dashboard implements OnInit {
           this.updateActiveWorkPageState({ busy: false, error: errorMessage, empty: false });
         },
         complete: () => this.customerSearchBusy.set(false),
+      });
+  }
+
+  private loadDogList(): void {
+    if (!this.canManageCustomers() || this.dogListBusy()) {
+      return;
+    }
+
+    this.dogListBusy.set(true);
+    this.dogListError.set('');
+    this.updateActiveWorkPageState({ busy: true, error: '', empty: false });
+    this.http
+      .get<DogFavoriteDto[]>(`${runtimeConfig.apiBaseUrl}/dogs`, {
+        params: { limit: String(this.dogListFetchLimit) },
+      })
+      .subscribe({
+        next: (dogs) => {
+          this.dogListItems.set(dogs.map((dog) => this.dogInstanceFromDto(dog)));
+          this.updateActiveWorkPageState({ busy: false, error: '', empty: dogs.length === 0 });
+        },
+        error: () => {
+          const errorMessage = 'Hundeliste konnte nicht geladen werden. Bitte versuche es erneut.';
+
+          this.dogListItems.set([]);
+          this.dogListError.set(errorMessage);
+          this.updateActiveWorkPageState({ busy: false, error: errorMessage, empty: false });
+        },
+        complete: () => this.dogListBusy.set(false),
       });
   }
 
@@ -1060,6 +1201,21 @@ export class Dashboard implements OnInit {
       },
     ];
 
+    const selectedDog = this.selectedDogFavorite();
+
+    if (workPage.contentType === 'detail' && selectedDog) {
+      actions.push({
+        id: 'dog-favorite-toggle',
+        label: `${dogDisplayName(selectedDog)}: ${this.dogFavoriteActionLabel(selectedDog)}`,
+        icon: this.isFavoriteDog(selectedDog) ? 'pi-star-fill' : 'pi-star',
+        severity: this.isFavoriteDog(selectedDog) ? 'warn' : 'success',
+        disabled: this.isFavoriteDogOperationBusy(selectedDog),
+        pressed: this.isFavoriteDog(selectedDog),
+      });
+
+      return actions;
+    }
+
     const selectedCustomer = this.selectedCustomer();
 
     if (workPage.contentType === 'detail' && selectedCustomer) {
@@ -1144,6 +1300,11 @@ export class Dashboard implements OnInit {
 
     const selectedCustomer = this.selectedCustomer();
 
+    if (actionId === 'dog-favorite-toggle' && this.selectedDogFavorite()) {
+      this.toggleFavoriteDog(this.selectedDogFavorite()!);
+      return;
+    }
+
     if (actionId === 'favorite-toggle' && selectedCustomer) {
       this.toggleFavoriteCustomer(selectedCustomer);
       return;
@@ -1213,7 +1374,7 @@ export class Dashboard implements OnInit {
     }
 
     this.expandedNodeIds.set(
-      new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole())),
+      new Set(expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole(), this.favoriteDogs())),
     );
   }
 
@@ -1301,7 +1462,7 @@ export class Dashboard implements OnInit {
 
   private dashboardGraphNodeById(nodeId: string): WorkspaceGraphNode | undefined {
     const expandedNodeIds = new Set(
-      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole(), this.favoriteDogs()),
     );
 
     return buildDashboardGraphNodes(
@@ -1314,7 +1475,7 @@ export class Dashboard implements OnInit {
 
   private dashboardGraphAncestorIdsForNode(nodeId: string): string[] {
     const expandedNodeIds = new Set(
-      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole()),
+      expandableDashboardGraphNodeIds(this.favoriteCustomers(), this.graphRole(), this.favoriteDogs()),
     );
     const edges = buildDashboardGraphEdges(
       this.favoriteCustomers(),
@@ -1495,6 +1656,7 @@ export class Dashboard implements OnInit {
       nodeId,
       this.favoriteCustomers(),
       this.graphRole(),
+      this.favoriteDogs(),
     );
 
     if (staleSubtreeNodeIds.length === 0) {
@@ -1520,6 +1682,21 @@ export class Dashboard implements OnInit {
     });
   }
 
+  private loadDogFavorites(): void {
+    if (!this.canManageCustomers()) {
+      this.favoriteDogs.set([]);
+      return;
+    }
+
+    this.http.get<DogFavoriteDto[]>(`${runtimeConfig.apiBaseUrl}/dog-favorites`).subscribe({
+      next: (favorites) => this.favoriteDogs.set(favorites.map((favorite) => this.dogInstanceFromDto(favorite))),
+      error: () =>
+        this.dogFavoriteStatusMessage.set(
+          'Hundefavoriten konnten nicht geladen werden. Die Hundeliste bleibt nutzbar, Anheften kann fehlschlagen.',
+        ),
+    });
+  }
+
   private loadCustomerFavorites(): void {
     if (!this.canManageCustomers()) {
       this.favoriteCustomers.set([]);
@@ -1538,6 +1715,108 @@ export class Dashboard implements OnInit {
             'Favoriten konnten nicht geladen werden. Die Suche bleibt nutzbar, Anheften kann fehlschlagen.',
           ),
       });
+  }
+
+  protected toggleFavoriteDog(dog: DogFavoriteInstance, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    if (this.isFavoriteDog(dog)) {
+      this.removeFavoriteDog(dog);
+      return;
+    }
+
+    this.pinFavoriteDog(dog);
+  }
+
+  private pinFavoriteDog(dog: DogFavoriteInstance): void {
+    this.setFavoriteDogOperationBusy(dog.id, true);
+    this.dogFavoriteStatusMessage.set('');
+    this.http.post<DogFavoriteDto>(`${runtimeConfig.apiBaseUrl}/dog-favorites/${dog.id}`, {}).subscribe({
+      next: (favorite) => {
+        const pinnedDog = { ...dog, ...this.dogInstanceFromDto(favorite) };
+
+        this.pinFavoriteDogLocally(pinnedDog);
+        this.selectedDogFavorite.update((selectedDog) =>
+          selectedDog?.id === pinnedDog.id ? { ...selectedDog, ...pinnedDog } : selectedDog,
+        );
+        this.expandNode('dogs');
+        this.expandNode('dog-favorites');
+        this.expandNode(`dog-favorite-${pinnedDog.id}`);
+        this.focusedTopLevelNodeId.set('dogs');
+        this.activeNodeId.set(`dog-favorite-${pinnedDog.id}`);
+        this.focusNodeAfterWorkPageClose = `dog-favorite-${pinnedDog.id}`;
+        this.dogFavoriteStatusMessage.set(
+          `${dogDisplayName(pinnedDog)} ist jetzt dein persönlicher Hundefavorit.`,
+        );
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handleDogFavoriteError(error);
+        this.setFavoriteDogOperationBusy(dog.id, false);
+      },
+      complete: () => this.setFavoriteDogOperationBusy(dog.id, false),
+    });
+  }
+
+  private removeFavoriteDog(dog: DogFavoriteInstance | null): void {
+    if (!dog || !this.canManageCustomers()) {
+      return;
+    }
+
+    this.setFavoriteDogOperationBusy(dog.id, true);
+    this.dogFavoriteStatusMessage.set('');
+    this.http.delete<void>(`${runtimeConfig.apiBaseUrl}/dog-favorites/${dog.id}`).subscribe({
+      next: () => {
+        this.favoriteDogs.update((dogs) => dogs.filter((candidate) => candidate.id !== dog.id));
+        this.dogFavoriteStatusMessage.set(
+          `${dogDisplayName(dog)} wurde aus deinen persönlichen Hundefavoriten entfernt.`,
+        );
+      },
+      error: () => {
+        this.dogFavoriteStatusMessage.set(
+          'Hundefavorit konnte nicht entfernt werden. Bitte versuche es erneut.',
+        );
+        this.setFavoriteDogOperationBusy(dog.id, false);
+      },
+      complete: () => this.setFavoriteDogOperationBusy(dog.id, false),
+    });
+  }
+
+  private pinFavoriteDogLocally(dog: DogFavoriteInstance): void {
+    this.favoriteDogs.update((dogs) => {
+      const withoutDuplicate = dogs.filter((candidate) => candidate.id !== dog.id);
+
+      return [dog, ...withoutDuplicate].slice(0, 6);
+    });
+  }
+
+  private handleDogFavoriteError(error: HttpErrorResponse): void {
+    if (error.status === 409) {
+      this.dogFavoriteStatusMessage.set(
+        'Du hast bereits 6 persönliche Hundefavoriten. Entferne erst einen Favoriten, bevor du einen neuen anheftest.',
+      );
+      return;
+    }
+
+    this.dogFavoriteStatusMessage.set(
+      'Hundefavorit konnte nicht angeheftet werden. Bitte versuche es erneut.',
+    );
+  }
+
+  private setFavoriteDogOperationBusy(dogId: string, busy: boolean): void {
+    this.favoriteOperationBusyDogIds.update((current) => {
+      const next = new Set(current);
+
+      if (busy) {
+        next.add(dogId);
+      } else {
+        next.delete(dogId);
+      }
+
+      return next;
+    });
   }
 
   private pinFavoriteCustomer(customer: CustomerInstance): void {
@@ -1733,6 +2012,27 @@ export class Dashboard implements OnInit {
     this.dogCreateError.set('');
   }
 
+  private dogInstanceFromDto(dog: DogFavoriteDto, selectedCustomer?: CustomerInstance | null): DogFavoriteInstance {
+    const dogId = dog.dogId ?? dog.petId ?? dog.id;
+    const customerName =
+      this.blankToUndefined(dog.customerName) ??
+      this.blankToUndefined(dog.customerDisplayName) ??
+      this.blankToUndefined(dog.ownerDisplayName) ??
+      (selectedCustomer ? customerDisplayName(selectedCustomer) : undefined) ??
+      'Kund:in unbekannt';
+
+    return {
+      id: String(dogId ?? ''),
+      name: this.blankToUndefined(dog.dogName) ?? this.blankToUndefined(dog.name) ?? 'Hund',
+      customerId: dog.customerId === null || dog.customerId === undefined ? selectedCustomer?.id : String(dog.customerId),
+      customerName,
+      breed: this.blankToUndefined(dog.breed),
+      size: this.blankToUndefined(dog.size),
+      groomingNotes: this.blankToUndefined(dog.groomingNotes),
+      avatarUrl: dog.imageBase64 ? `data:image/*;base64,${dog.imageBase64}` : undefined,
+    };
+  }
+
   private customerFavoriteFromDto(favorite: CustomerFavoriteDto): CustomerInstance {
     const { firstName, lastName } = this.customerNameParts(favorite);
 
@@ -1767,12 +2067,35 @@ export class Dashboard implements OnInit {
     };
   }
 
+  private dogFromNode(node: WorkspaceGraphNode): DogFavoriteInstance | null {
+    if (this.isDogFavoriteInstance(node.payload)) {
+      return node.payload;
+    }
+
+    const dogId = node.id.replace(/^dog-favorite-/, '').replace(/-(details|remove)$/, '');
+
+    return this.favoriteDogs().find((dog) => dog.id === dogId) ?? null;
+  }
+
   private customerFromNode(node: WorkspaceGraphNode): CustomerInstance | null {
     if (this.isCustomerInstance(node.payload)) {
       return node.payload;
     }
 
     return this.favoriteCustomers().find((customer) => customer.id === node.id) ?? null;
+  }
+
+  private isDogFavoriteInstance(value: unknown): value is DogFavoriteInstance {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'id' in value &&
+      'name' in value &&
+      'customerName' in value &&
+      typeof value.id === 'string' &&
+      typeof value.name === 'string' &&
+      typeof value.customerName === 'string'
+    );
   }
 
   private isCustomerInstance(value: unknown): value is CustomerInstance {
@@ -1853,6 +2176,36 @@ export class Dashboard implements OnInit {
     });
   }
 
+  private openDogListWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    this.dogListItems.set([]);
+    this.dogListError.set('');
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'list',
+      title: 'Hundeliste',
+      description: 'Hunde mit Kundenbezug. Favoriten sind persönlich pro Groomer/Admin.',
+      originLabel: `aus Knoten ${node.label}`,
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Schließen',
+      busy: true,
+      error: '',
+      empty: false,
+    });
+    this.loadDogList();
+  }
+
   private openCustomerListWorkPage(
     node: WorkspaceGraphNode,
     sourceOrigin: CircularWorkPageOrigin | undefined,
@@ -1913,6 +2266,26 @@ export class Dashboard implements OnInit {
       primaryActionLabel: '',
       secondaryActionLabel: 'Schließen',
       empty: false,
+    });
+  }
+
+  private openDogDetailReadPage(
+    dog: DogFavoriteInstance,
+    sourceNode: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+  ): void {
+    this.pruneExpandedNodeIdsForWorkPage(sourceNode.id);
+    this.lockGraphPresentationForWorkPage();
+    this.focusNodeAfterWorkPageClose = `dog-favorite-${dog.id}`;
+    this.activeWorkPage.set({
+      sourceNodeId: sourceNode.id,
+      sourceLabel: sourceNode.label,
+      sourceOrigin,
+      contentType: 'detail',
+      title: `${dogDisplayName(dog)} Hundeprofil`,
+      originLabel: `aus Knoten ${sourceNode.label}`,
+      primaryActionLabel: '',
+      secondaryActionLabel: 'Zum Hunde-Knoten',
     });
   }
 
