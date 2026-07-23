@@ -1,12 +1,15 @@
 package de.groomingmanager.backend.api;
 
+import de.groomingmanager.backend.domain.Customer;
 import de.groomingmanager.backend.domain.Pet;
+import de.groomingmanager.backend.repository.CustomerRepository;
 import de.groomingmanager.backend.repository.PetRepository;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,28 +17,28 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/api/pets")
 public class PetController {
   private final PetRepository petRepository;
+  private final CustomerRepository customerRepository;
 
-  public PetController(PetRepository petRepository) {
+  public PetController(PetRepository petRepository, CustomerRepository customerRepository) {
     this.petRepository = petRepository;
+    this.customerRepository = customerRepository;
   }
 
-  @GetMapping
+  @GetMapping("/api/pets")
   public List<PetDto> list(Authentication authentication) {
     return petRepository.findByOwnerSubjectOrderByCreatedAtDesc(authentication.getName()).stream()
         .map(PetController::toDto)
         .toList();
   }
 
-  @PostMapping
+  @PostMapping("/api/pets")
   public PetDto create(
       @Valid @RequestBody UpsertPetRequest request, Authentication authentication) {
     Instant now = Instant.now();
@@ -47,7 +50,24 @@ public class PetController {
     return toDto(petRepository.save(pet));
   }
 
-  @PutMapping("/{id}")
+  @PostMapping("/api/customers/{customerId}/pets")
+  @PreAuthorize("hasRole('admin') or hasRole('groomer')")
+  public PetDto createForCustomer(
+      @PathVariable Long customerId, @Valid @RequestBody UpsertPetRequest request) {
+    Customer customer =
+        customerRepository
+            .findById(customerId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    Instant now = Instant.now();
+    Pet pet = new Pet();
+    pet.setOwnerSubject(petOwnerSubjectForCustomer(customer));
+    applyRequest(pet, request);
+    pet.setCreatedAt(now);
+    pet.setUpdatedAt(now);
+    return toDto(petRepository.save(pet));
+  }
+
+  @PutMapping("/api/pets/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void update(
       @PathVariable Long id,
@@ -59,7 +79,7 @@ public class PetController {
     petRepository.save(pet);
   }
 
-  @DeleteMapping("/{id}")
+  @DeleteMapping("/api/pets/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable Long id, Authentication authentication) {
     petRepository.delete(ownPet(id, authentication));
@@ -98,5 +118,11 @@ public class PetController {
 
   private static String safeTrim(String value) {
     return value == null ? "" : value.trim();
+  }
+
+  private static String petOwnerSubjectForCustomer(Customer customer) {
+    String subject = safeTrim(customer.getKeycloakSubject());
+
+    return subject.isBlank() ? "customer:" + customer.getId() : subject;
   }
 }

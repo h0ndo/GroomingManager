@@ -75,6 +75,7 @@ h1 {
 }
 
 .workspace-form input,
+.workspace-form textarea,
 .work-page-search input,
 .work-page-list-stub input {
   border: 1px solid #cbd5e1;
@@ -86,6 +87,7 @@ h1 {
 }
 
 .workspace-form input:focus,
+.workspace-form textarea:focus,
 .work-page-search input:focus,
 .work-page-list-stub input:focus,
 .work-page-search__item:focus-visible,
@@ -123,7 +125,8 @@ h1 {
 }
 
 .work-page-search label,
-.work-page-list-stub label {
+.work-page-list-stub label,
+.dog-form label {
   color: #334155;
   font-weight: 800;
 }
@@ -520,4 +523,20 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.dog-form__customer,
+.dog-form__customer-results {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dog-form__hint,
+.required-hint {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.favorite-status--error {
+  color: #b91c1c;
 }

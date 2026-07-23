@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.groomingmanager.backend.config.SecurityConfig;
+import de.groomingmanager.backend.domain.Customer;
 import de.groomingmanager.backend.domain.Pet;
+import de.groomingmanager.backend.repository.CustomerRepository;
 import de.groomingmanager.backend.repository.PetRepository;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +34,8 @@ class PetControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private PetRepository petRepository;
+
+  @MockitoBean private CustomerRepository customerRepository;
 
   @Test
   void customerCanListOwnPets() throws Exception {
@@ -73,6 +77,67 @@ class PetControllerTest {
         .andExpect(jsonPath("$.name").value("Flocke"));
   }
 
+
+  @Test
+  void managerCanCreatePetForExistingCustomer() throws Exception {
+    Customer customer = customer(42L, "kunde-42");
+    when(customerRepository.findById(42L)).thenReturn(Optional.of(customer));
+    when(petRepository.save(any(Pet.class)))
+        .thenAnswer(
+            invocation -> {
+              Pet pet = invocation.getArgument(0);
+              pet.setId(10L);
+              return pet;
+            });
+
+    mockMvc
+        .perform(
+            post("/api/customers/42/pets")
+                .with(jwtWithRole("groomer-1", "ROLE_groomer"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"name":" Nala ","breed":"Labradoodle","size":"mittel","groomingNotes":"ruhig","imageBase64":"aGk="}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.ownerSubject").value("kunde-42"))
+        .andExpect(jsonPath("$.name").value("Nala"));
+  }
+
+  @Test
+  void customerCannotCreatePetForAnotherCustomerProfile() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/customers/42/pets")
+                .with(jwtWithRole("kunde-1", "ROLE_kunde"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Nala\"}"))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void managerCreatedPetFallsBackToCustomerIdOwnerWhenCustomerHasNoSubject() throws Exception {
+    Customer customer = customer(43L, null);
+    when(customerRepository.findById(43L)).thenReturn(Optional.of(customer));
+    when(petRepository.save(any(Pet.class)))
+        .thenAnswer(
+            invocation -> {
+              Pet pet = invocation.getArgument(0);
+              pet.setId(11L);
+              return pet;
+            });
+
+    mockMvc
+        .perform(
+            post("/api/customers/43/pets")
+                .with(jwtWithRole("admin-1", "ROLE_admin"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Bruno\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.ownerSubject").value("customer:43"));
+  }
+
   @Test
   void customerCannotDeleteSomeoneElsesPet() throws Exception {
     when(petRepository.findByIdAndOwnerSubject(5L, "kunde-1")).thenReturn(Optional.empty());
@@ -92,6 +157,13 @@ class PetControllerTest {
         .andExpect(status().isNoContent());
 
     verify(petRepository).delete(pet);
+  }
+
+  private static Customer customer(Long id, String keycloakSubject) {
+    Customer customer = new Customer("Katja Gross");
+    customer.setId(id);
+    customer.setKeycloakSubject(keycloakSubject);
+    return customer;
   }
 
   private static Pet pet(Long id, String ownerSubject, String name) {

@@ -250,6 +250,21 @@ const customerManagerNodes: WorkspaceGraphNode[] = [
   },
 ];
 
+const dogManagerNodes: WorkspaceGraphNode[] = [
+  {
+    id: 'dog-add',
+    label: 'Hund hinzufügen',
+    kind: 'action',
+    x: 700,
+    y: 560,
+    layout: { angle: 330 },
+    icon: 'pi-plus-circle',
+    action: 'custom',
+    description:
+      'Neues Hundeprofil erfassen. Bei Start über den Hunde-Knoten muss zuerst ein Kunde ausgewählt werden.',
+  },
+];
+
 const customerSelfServiceNodes: WorkspaceGraphNode[] = [
   {
     id: 'customer-self-profile',
@@ -355,6 +370,20 @@ function customerActionNodes(
       action: 'custom',
       payload: customer,
       description: 'Diesen Kunden löschen',
+    });
+  }
+
+  if (canManageCustomerGraph(role)) {
+    nodes.push({
+      id: `${customer.id}-dog-add`,
+      label: 'Hund hinzufügen',
+      kind: 'action',
+      x: 335,
+      y: 300,
+      icon: 'pi-plus-circle',
+      action: 'custom',
+      payload: customer,
+      description: `Neues Hundeprofil für ${customerDisplayName(customer)} erfassen`,
     });
   }
 
@@ -557,7 +586,11 @@ export function buildDashboardGraphNodes(
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
       const childNodes =
-        nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
+        nodeId === 'customers'
+          ? customerChildNodes(role)
+          : nodeId === 'dogs' && canManageCustomerGraph(role)
+            ? dogManagerNodes
+            : (childrenByParent.get(nodeId) ?? []);
 
       nodes.push(...childNodes.map((node) => withChildLayout(nodeId, node, topLevelLayout)));
     }
@@ -594,7 +627,11 @@ export function buildDashboardGraphEdges(
   visibleTopLevelNodes.forEach((nodeId) => {
     if (expandedNodeIds.has(nodeId)) {
       const childNodes =
-        nodeId === 'customers' ? customerChildNodes(role) : (childrenByParent.get(nodeId) ?? []);
+        nodeId === 'customers'
+          ? customerChildNodes(role)
+          : nodeId === 'dogs' && canManageCustomerGraph(role)
+            ? dogManagerNodes
+            : (childrenByParent.get(nodeId) ?? []);
 
       edges.push(...childNodes.map((node) => ({ from: nodeId, to: node.id })));
     }
@@ -628,8 +665,8 @@ export function hasDashboardGraphChildren(
   customers: readonly CustomerInstance[],
   role: DashboardGraphRole = 'admin',
 ): boolean {
-  if (nodeId === 'customers') {
-    return true;
+  if (nodeId === 'customers' || nodeId === 'dogs') {
+    return canManageCustomerGraph(role) || nodeId === 'customers';
   }
 
   if (nodeId === CUSTOMER_FAVORITES_NODE_ID) {

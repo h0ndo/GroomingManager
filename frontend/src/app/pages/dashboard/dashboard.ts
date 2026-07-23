@@ -62,8 +62,35 @@ type CustomerDto = {
   profileImageBase64?: string | null;
 };
 
+type PetDto = {
+  id: number;
+  ownerSubject: string;
+  name: string;
+  breed?: string | null;
+  size?: string | null;
+  groomingNotes?: string | null;
+  imageBase64?: string | null;
+};
+
+type PetFormState = {
+  name: string;
+  breed: string;
+  size: string;
+  groomingNotes: string;
+  imageBase64: string;
+  imageFileName: string;
+  customerId: string;
+};
+
 type WorkspacePanelMode =
-  'overview' | 'list' | 'search' | 'create' | 'profile' | 'delete' | 'selected';
+  | 'overview'
+  | 'list'
+  | 'search'
+  | 'create'
+  | 'profile'
+  | 'delete'
+  | 'selected'
+  | 'dog-create';
 type WorkspaceLayoutMode = 'focused-work' | 'custom-flex';
 
 type WorkspacePanel = {
@@ -170,6 +197,17 @@ export class Dashboard implements OnInit {
   protected readonly customerListFetchLimit = 100;
   protected readonly customerDeleteBusy = signal(false);
   protected readonly customerDeleteError = signal('');
+  protected readonly dogCreateBusy = signal(false);
+  protected readonly dogCreateError = signal('');
+  protected readonly dogCreateStatusMessage = signal('');
+  protected readonly dogImageError = signal('');
+  protected readonly dogForm = signal<PetFormState>(this.emptyPetForm());
+  protected readonly dogSelectedCustomer = signal<CustomerInstance | null>(null);
+  protected readonly dogCustomerSearchTerm = signal('');
+  protected readonly dogCustomerSearchResults = signal<CustomerListItem[]>([]);
+  protected readonly dogCustomerSearchBusy = signal(false);
+  protected readonly dogCustomerSearchError = signal('');
+  protected readonly dogCustomerSearchResultLimit = 6;
   protected readonly customerSearchResultLimit = 6;
   protected readonly dailyAgendaItems: AgendaItem[] = [
     {
@@ -211,6 +249,26 @@ export class Dashboard implements OnInit {
 
     return 'Keine Kund:innen für diese Suche gefunden.';
   });
+  protected readonly selectedDogCustomer = computed(() => this.dogSelectedCustomer());
+  protected readonly selectedDogCustomerLabel = computed(() => {
+    const selectedCustomer = this.selectedDogCustomer();
+
+    return selectedCustomer ? customerDisplayName(selectedCustomer) : '';
+  });
+  protected readonly visibleDogCustomerSearchResults = computed(() =>
+    this.dogCustomerSearchResults().slice(0, this.dogCustomerSearchResultLimit),
+  );
+  protected readonly dogCustomerSearchEmptyMessage = computed(() => {
+    if (!this.dogCustomerSearchTerm().trim()) {
+      return 'Bitte suche und wähle zuerst die Kund:in für diesen Hund.';
+    }
+
+    return 'Keine Kund:innen für diese Suche gefunden.';
+  });
+  protected readonly dogFormCustomerMissing = computed(() => !this.dogForm().customerId);
+  protected readonly dogFormInvalid = computed(
+    () => !this.dogForm().name.trim() || this.dogFormCustomerMissing(),
+  );
   protected readonly workspacePanel = signal<WorkspacePanel>({
     mode: 'overview',
     eyebrow: 'Start',
@@ -421,6 +479,22 @@ export class Dashboard implements OnInit {
       return;
     }
 
+    if (this.isDogCreateNodeId(node.id)) {
+      const customer = this.customerFromNode(node) ?? this.selectedCustomer();
+
+      this.openDogCreateWorkPage(node, selection.sourceOrigin, customer ?? undefined);
+      this.workspacePanel.set({
+        mode: 'dog-create',
+        eyebrow: 'Hundeaktion',
+        title: 'Hund hinzufügen',
+        description: customer
+          ? `${customerDisplayName(customer)} ist als Kund:in vorbelegt. Das Formular bleibt dieselbe runde Hund-Erfassung.`
+          : 'Bitte suche und wähle zuerst die Kund:in, bevor das Hundeprofil gespeichert werden kann.',
+        node,
+      });
+      return;
+    }
+
     if (node.id === 'appointments') {
       this.openDailyAgendaWorkPage(node, selection.sourceOrigin);
       this.workspacePanel.set({
@@ -580,6 +654,162 @@ export class Dashboard implements OnInit {
       });
   }
 
+  protected updateDogForm(field: keyof PetFormState, value: string): void {
+    this.dogForm.update((form) => ({ ...form, [field]: value }));
+    this.dogCreateError.set('');
+    this.updateActiveWorkPageState({ error: '' });
+  }
+
+  protected updateDogCustomerSearchTerm(searchTerm: string): void {
+    this.dogCustomerSearchTerm.set(searchTerm);
+    const trimmedSearchTerm = searchTerm.trim();
+
+    if (!trimmedSearchTerm) {
+      this.dogCustomerSearchResults.set([]);
+      this.dogCustomerSearchError.set('');
+      this.dogCustomerSearchBusy.set(false);
+      return;
+    }
+
+    this.dogCustomerSearchBusy.set(true);
+    this.dogCustomerSearchError.set('');
+    this.http
+      .get<CustomerDto[]>(`${runtimeConfig.apiBaseUrl}/customers`, {
+        params: { query: trimmedSearchTerm, limit: String(this.dogCustomerSearchResultLimit) },
+      })
+      .subscribe({
+        next: (customers) => {
+          this.dogCustomerSearchResults.set(
+            customers.map((customer) => this.customerListItemFromDto(customer)),
+          );
+        },
+        error: () => {
+          this.dogCustomerSearchResults.set([]);
+          this.dogCustomerSearchError.set(
+            'Kund:innen konnten nicht geladen werden. Bitte versuche es erneut.',
+          );
+        },
+        complete: () => this.dogCustomerSearchBusy.set(false),
+      });
+  }
+
+  protected selectDogCustomer(customer: CustomerListItem): void {
+    const customerInstance = this.customerInstanceFromCustomer(customer);
+
+    this.dogSelectedCustomer.set(customerInstance);
+    this.updateDogForm('customerId', customer.id);
+    this.dogCustomerSearchTerm.set(customer.name);
+    this.dogCustomerSearchResults.set([]);
+  }
+
+  protected clearDogCustomerSelection(): void {
+    this.dogSelectedCustomer.set(null);
+    this.updateDogForm('customerId', '');
+    this.dogCustomerSearchTerm.set('');
+    this.dogCustomerSearchResults.set([]);
+  }
+
+  protected handleDogImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    this.dogImageError.set('');
+    if (!file) {
+      this.updateDogForm('imageBase64', '');
+      this.updateDogForm('imageFileName', '');
+      return;
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      this.dogImageError.set('Bitte JPG, PNG oder WebP als Hundebild auswählen.');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      this.dogImageError.set('Das Hundebild darf maximal 2 MB groß sein.');
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+
+      this.updateDogForm('imageBase64', base64);
+      this.updateDogForm('imageFileName', file.name);
+    };
+    reader.onerror = () => {
+      this.dogImageError.set('Hundebild konnte nicht gelesen werden. Bitte wähle eine andere Datei.');
+      input.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  protected createDog(): void {
+    const form = this.dogForm();
+
+    if (this.dogCreateBusy() || this.dogFormInvalid()) {
+      this.dogCreateError.set(
+        this.dogFormCustomerMissing()
+          ? 'Bitte wähle zuerst die Kund:in aus, der dieser Hund gehört.'
+          : 'Bitte gib mindestens den Namen des Hundes ein.',
+      );
+      this.updateActiveWorkPageState({ error: this.dogCreateError() });
+      return;
+    }
+
+    this.dogCreateBusy.set(true);
+    this.dogCreateError.set('');
+    this.updateActiveWorkPageState({ busy: true, error: '' });
+    this.http
+      .post<PetDto>(`${runtimeConfig.apiBaseUrl}/customers/${form.customerId}/pets`, {
+        name: form.name.trim(),
+        breed: form.breed.trim(),
+        size: form.size.trim(),
+        groomingNotes: form.groomingNotes.trim(),
+        imageBase64: form.imageBase64,
+      })
+      .subscribe({
+        next: (createdPet) => {
+          const customer = this.dogSelectedCustomer();
+          const customerLabel = customer ? customerDisplayName(customer) : 'der gewählten Kund:in';
+
+          this.dogCreateStatusMessage.set(`${createdPet.name} wurde für ${customerLabel} gespeichert.`);
+          if (customer) {
+            this.pinFavoriteCustomerLocally(customer);
+            this.selectedCustomer.set(customer);
+            this.expandNode('customer-favorites');
+            this.expandNode(customer.id);
+            this.activeNodeId.set(customer.id);
+            this.focusNodeAfterWorkPageClose = customer.id;
+          } else {
+            this.activeNodeId.set('dogs');
+            this.focusNodeAfterWorkPageClose = 'dogs';
+          }
+          this.workspacePanel.set({
+            mode: 'selected',
+            eyebrow: 'Hundeprofil',
+            title: `${createdPet.name} gespeichert`,
+            description: `${createdPet.name} wurde über die runde Hunde-Erfassung gespeichert und bleibt über den Kunden-/Hunde-Kontext auffindbar.`,
+          });
+          this.resetDogForm();
+          this.activeWorkPage.set(null);
+          this.unlockGraphPresentation();
+          setTimeout(() => this.focusWorkspaceNode(this.focusNodeAfterWorkPageClose ?? 'dogs'), 250);
+        },
+        error: () => {
+          const errorMessage =
+            'Hund konnte nicht gespeichert werden. Bitte prüfe die Eingaben und versuche es erneut.';
+
+          this.dogCreateError.set(errorMessage);
+          this.updateActiveWorkPageState({ busy: false, error: errorMessage });
+        },
+        complete: () => this.dogCreateBusy.set(false),
+      });
+  }
+
   protected deleteSelectedCustomer(): void {
     const customer = this.selectedCustomer();
 
@@ -696,6 +926,14 @@ export class Dashboard implements OnInit {
     return customerDisplayName(customer);
   }
 
+  protected isDogCreateWorkPage(workPage: WorkspaceWorkPage): boolean {
+    return this.isDogCreateNodeId(workPage.sourceNodeId);
+  }
+
+  protected openDogCreateFromCustomerProfile(customer: CustomerInstance): void {
+    this.openDogCreateWorkPageFromSelectedCustomer(customer);
+  }
+
   protected updateCustomerSearchTerm(searchTerm: string): void {
     this.customerSearchTerm.set(searchTerm);
     const trimmedSearchTerm = searchTerm.trim();
@@ -797,6 +1035,11 @@ export class Dashboard implements OnInit {
 
   protected handleWorkPagePrimaryAction(): void {
     if (this.activeWorkPage()?.contentType === 'form') {
+      if (this.isDogCreateNodeId(this.activeWorkPage()?.sourceNodeId ?? '')) {
+        this.createDog();
+        return;
+      }
+
       this.createCustomer();
       return;
     }
@@ -842,6 +1085,15 @@ export class Dashboard implements OnInit {
         });
       }
 
+      if (this.canManageCustomers()) {
+        actions.push({
+          id: 'add-dog-to-customer',
+          label: `${customerDisplayName(customer)}: Hund hinzufügen`,
+          icon: 'pi-plus-circle',
+          severity: 'success',
+        });
+      }
+
       if (this.canDeleteCustomers()) {
         actions.push({
           id: 'delete-customer',
@@ -855,12 +1107,14 @@ export class Dashboard implements OnInit {
     }
 
     if (workPage.contentType === 'form' && workPage.primaryActionLabel) {
+      const isDogCreatePage = this.isDogCreateNodeId(workPage.sourceNodeId);
+
       actions.push({
         id: 'primary',
         label: workPage.primaryActionLabel,
         icon: 'pi-check',
         severity: 'primary',
-        disabled: workPage.busy,
+        disabled: workPage.busy || (isDogCreatePage && this.dogFormInvalid()),
       });
     }
 
@@ -895,6 +1149,11 @@ export class Dashboard implements OnInit {
       return;
     }
 
+    if (actionId === 'add-dog-to-customer' && selectedCustomer) {
+      this.openDogCreateWorkPageFromSelectedCustomer(selectedCustomer);
+      return;
+    }
+
     if (actionId === 'delete-customer' && selectedCustomer) {
       this.openCustomerDeleteConfirmationPage(
         selectedCustomer,
@@ -915,6 +1174,7 @@ export class Dashboard implements OnInit {
 
     this.newCustomerName.set('');
     this.customerSearchTerm.set('');
+    this.resetDogForm();
     this.activeNodeId.set(focusNodeId);
     this.focusNodeAfterWorkPageClose = focusNodeId;
     this.workspacePanel.set({
@@ -1450,6 +1710,29 @@ export class Dashboard implements OnInit {
     return trimmedValue ? trimmedValue : undefined;
   }
 
+  private emptyPetForm(customer?: CustomerInstance): PetFormState {
+    return {
+      name: '',
+      breed: '',
+      size: '',
+      groomingNotes: '',
+      imageBase64: '',
+      imageFileName: '',
+      customerId: customer?.id ?? '',
+    };
+  }
+
+  private resetDogForm(customer?: CustomerInstance): void {
+    this.dogForm.set(this.emptyPetForm(customer));
+    this.dogSelectedCustomer.set(customer ?? null);
+    this.dogCustomerSearchTerm.set(customer ? customerDisplayName(customer) : '');
+    this.dogCustomerSearchResults.set([]);
+    this.dogCustomerSearchError.set('');
+    this.dogCustomerSearchBusy.set(false);
+    this.dogImageError.set('');
+    this.dogCreateError.set('');
+  }
+
   private customerFavoriteFromDto(favorite: CustomerFavoriteDto): CustomerInstance {
     const { firstName, lastName } = this.customerNameParts(favorite);
 
@@ -1523,6 +1806,50 @@ export class Dashboard implements OnInit {
       originLabel: `aus Knoten ${node.label}`,
       primaryActionLabel: 'Speichern',
       secondaryActionLabel: 'Abbrechen',
+    });
+  }
+
+  private openDogCreateWorkPageFromSelectedCustomer(customer: CustomerInstance): void {
+    const sourceNode = this.dashboardGraphNodeById(`${customer.id}-dog-add`) ?? this.activeWorkPageSourceNode();
+
+    this.openDogCreateWorkPage(sourceNode, undefined, customer);
+    this.workspacePanel.set({
+      mode: 'dog-create',
+      eyebrow: 'Hundeaktion',
+      title: 'Hund hinzufügen',
+      description: `${customerDisplayName(customer)} ist als Kund:in vorbelegt. Das Formular bleibt dieselbe runde Hund-Erfassung.`,
+      node: sourceNode,
+    });
+  }
+
+  private openDogCreateWorkPage(
+    node: WorkspaceGraphNode,
+    sourceOrigin: CircularWorkPageOrigin | undefined,
+    customer?: CustomerInstance,
+  ): void {
+    if (!this.canManageCustomers()) {
+      return;
+    }
+
+    this.resetDogForm(customer);
+    this.pruneExpandedNodeIdsForWorkPage(node.id);
+    this.lockGraphPresentationForWorkPage();
+    this.focusNodeAfterWorkPageClose = this.focusableContextNodeIdForNodeId(node.id);
+    this.activeWorkPage.set({
+      sourceNodeId: node.id,
+      sourceLabel: node.label,
+      sourceOrigin,
+      contentType: 'form',
+      title: 'Hund hinzufügen',
+      description:
+        'Erfasse die Hund-Felder aus der bestehenden pets-Struktur: Name, Rasse, Größe, Grooming-Notizen und optional ein Profilbild.',
+      originLabel: customer
+        ? `für ${customerDisplayName(customer)}`
+        : 'aus Knoten Hunde, Kund:in noch auswählen',
+      primaryActionLabel: 'Hund speichern',
+      secondaryActionLabel: 'Abbrechen',
+      busy: false,
+      error: '',
     });
   }
 
@@ -1696,6 +2023,10 @@ export class Dashboard implements OnInit {
     }
 
     return 'Arbeitsgraph';
+  }
+
+  private isDogCreateNodeId(nodeId: string): boolean {
+    return nodeId === 'dog-add' || nodeId.endsWith('-dog-add');
   }
 
   protected canManageCustomers(): boolean {

@@ -218,6 +218,7 @@ describe('dashboard graph model', () => {
         'customer-katja-gross-profile',
         'customer-katja-gross-appointment-list',
         'customer-katja-gross-delete',
+        'customer-katja-gross-dog-add',
         'customer-katja-gross-detach',
       ]),
     );
@@ -227,6 +228,7 @@ describe('dashboard graph model', () => {
         { from: 'customer-katja-gross', to: 'customer-katja-gross-profile' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-appointment-list' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-delete' },
+        { from: 'customer-katja-gross', to: 'customer-katja-gross-dog-add' },
         { from: 'customer-katja-gross', to: 'customer-katja-gross-detach' },
       ]),
     );
@@ -248,6 +250,7 @@ describe('dashboard graph model', () => {
         'customer-katja-gross-profile',
         'customer-katja-gross-appointment-list',
         'customer-katja-gross-delete',
+        'customer-katja-gross-dog-add',
         'customer-katja-gross-detach',
       ]),
     );
@@ -268,6 +271,7 @@ describe('dashboard graph model', () => {
         'customer-katja-gross-profile',
         'customer-katja-gross-appointment-list',
         'customer-katja-gross-delete',
+        'customer-katja-gross-dog-add',
         'customer-katja-gross-detach',
       ]),
     );
@@ -278,6 +282,24 @@ describe('dashboard graph model', () => {
     expect(dashboardGraphSiblingSubtreeNodeIds('customer-favorites', favoriteCustomers)).toEqual(
       jasmine.arrayContaining(['customer-search', 'customer-add']),
     );
+  });
+
+  it('adds Hund hinzufügen as an action under the Hunde collection for manager roles only', () => {
+    const managerNodes = buildDashboardGraphNodes([], new Set(['dogs']), undefined, 'groomer');
+    const managerEdges = buildDashboardGraphEdges([], new Set(['dogs']), 'groomer');
+    const customerNodes = buildDashboardGraphNodes([], new Set(['dogs']), undefined, 'kunde');
+
+    expect(managerNodes.find((node) => node.id === 'dog-add')).toEqual(
+      jasmine.objectContaining({
+        label: 'Hund hinzufügen',
+        kind: 'action',
+        action: 'custom',
+      }),
+    );
+    expect(managerEdges).toEqual(jasmine.arrayContaining([{ from: 'dogs', to: 'dog-add' }]));
+    expect(customerNodes.map((node) => node.id)).not.toContain('dog-add');
+    expect(hasDashboardGraphChildren('dogs', [], 'groomer')).toBeTrue();
+    expect(hasDashboardGraphChildren('dogs', [], 'kunde')).toBeFalse();
   });
 
   it('shows destructive customer delete action nodes only for admins', () => {

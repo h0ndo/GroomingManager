@@ -145,18 +145,99 @@
             </div>
           }
           @case ('form') {
-            <div class="workspace-form workspace-form--work-page" role="group" aria-label="Kundenformular">
-              <label for="workPageCustomerName">Name des Kunden</label>
-              <input
-                id="workPageCustomerName"
-                name="workPageCustomerName"
-                type="text"
-                [ngModel]="newCustomerName()"
-                (ngModelChange)="newCustomerName.set($event)"
-                placeholder="z. B. Katja Gross"
-              />
-              <p>Die Shell liefert Titel, Beschreibung, Content-Slot und runde Aktionen; der Inhalt bleibt austauschbar.</p>
-            </div>
+            @if (isDogCreateWorkPage(workPage)) {
+              <div class="dog-form workspace-form workspace-form--work-page" role="group" aria-label="Hund hinzufügen Formular">
+                <div class="dog-form__customer">
+                  <span class="required-hint">Pflichtfeld</span>
+                  <label for="workPageDogCustomer">Kund:in</label>
+                  @if (selectedDogCustomer(); as customer) {
+                    <div class="dog-form__selected-customer" role="status">
+                      <span class="pi pi-user" aria-hidden="true"></span>
+                      <strong>{{ selectedCustomerLabelFor(customer) }}</strong>
+                      @if (workPage.sourceNodeId === 'dog-add') {
+                        <button type="button" class="link-button" (click)="clearDogCustomerSelection()">ändern</button>
+                      }
+                    </div>
+                  } @else {
+                    <input
+                      id="workPageDogCustomer"
+                      name="workPageDogCustomer"
+                      type="search"
+                      [ngModel]="dogCustomerSearchTerm()"
+                      (ngModelChange)="updateDogCustomerSearchTerm($event)"
+                      placeholder="Kund:in suchen"
+                      autocomplete="off"
+                      aria-describedby="workPageDogCustomerHint"
+                      required
+                    />
+                    <p id="workPageDogCustomerHint" class="dog-form__hint">Beim Start über den Hunde-Knoten muss vor dem Speichern eine Kund:in gewählt werden.</p>
+                    @if (dogCustomerSearchBusy()) {
+                      <p class="work-page-search__empty" role="status">Kundensuche wird geladen…</p>
+                    }
+                    @if (dogCustomerSearchError()) {
+                      <p class="favorite-status favorite-status--error" role="alert">{{ dogCustomerSearchError() }}</p>
+                    }
+                    <div class="dog-form__customer-results" role="list" aria-label="Kund:innen für Hund auswählen">
+                      @for (customer of visibleDogCustomerSearchResults(); track customer.id) {
+                        <button type="button" role="listitem" class="dog-form__customer-result" (click)="selectDogCustomer(customer)">
+                          <strong>{{ customer.name }}</strong>
+                          <span>{{ customerProfileFieldValue(customer.email) }}</span>
+                        </button>
+                      } @empty {
+                        <p class="work-page-search__empty" role="status">{{ dogCustomerSearchEmptyMessage() }}</p>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <label for="workPageDogName">Name des Hundes <span class="required-hint">Pflichtfeld</span></label>
+                <input
+                  id="workPageDogName"
+                  name="workPageDogName"
+                  type="text"
+                  [ngModel]="dogForm().name"
+                  (ngModelChange)="updateDogForm('name', $event)"
+                  placeholder="z. B. Nala"
+                  required
+                />
+
+                <label for="workPageDogBreed">Rasse</label>
+                <input id="workPageDogBreed" name="workPageDogBreed" type="text" [ngModel]="dogForm().breed" (ngModelChange)="updateDogForm('breed', $event)" placeholder="z. B. Labradoodle" />
+
+                <label for="workPageDogSize">Größe</label>
+                <input id="workPageDogSize" name="workPageDogSize" type="text" [ngModel]="dogForm().size" (ngModelChange)="updateDogForm('size', $event)" placeholder="z. B. mittel" />
+
+                <label for="workPageDogNotes">Grooming-Notizen</label>
+                <textarea id="workPageDogNotes" name="workPageDogNotes" [ngModel]="dogForm().groomingNotes" (ngModelChange)="updateDogForm('groomingNotes', $event)" rows="3" placeholder="Fell, Verhalten, Pflegehinweise"></textarea>
+
+                <label for="workPageDogImage">Hundebild</label>
+                <input id="workPageDogImage" name="workPageDogImage" type="file" accept="image/jpeg,image/png,image/webp" (change)="handleDogImageSelected($event)" aria-describedby="workPageDogImageHint" />
+                <p id="workPageDogImageHint" class="dog-form__hint">JPG, PNG oder WebP bis 2 MB. Das Bild wird als primäres Hundeprofilbild gespeichert.</p>
+                @if (dogForm().imageFileName) {
+                  <p class="favorite-status" role="status">Ausgewählt: {{ dogForm().imageFileName }}</p>
+                }
+                @if (dogImageError()) {
+                  <p class="favorite-status favorite-status--error" role="alert">{{ dogImageError() }}</p>
+                }
+                @if (dogCreateError()) {
+                  <p class="favorite-status favorite-status--error" role="alert">{{ dogCreateError() }}</p>
+                }
+                <p class="dog-form__hint">Backend-Felder laut pets-Struktur: name, breed, size, groomingNotes, imageBase64.</p>
+              </div>
+            } @else {
+              <div class="workspace-form workspace-form--work-page" role="group" aria-label="Kundenformular">
+                <label for="workPageCustomerName">Name des Kunden</label>
+                <input
+                  id="workPageCustomerName"
+                  name="workPageCustomerName"
+                  type="text"
+                  [ngModel]="newCustomerName()"
+                  (ngModelChange)="newCustomerName.set($event)"
+                  placeholder="z. B. Katja Gross"
+                />
+                <p>Die Shell liefert Titel, Beschreibung, Content-Slot und runde Aktionen; der Inhalt bleibt austauschbar.</p>
+              </div>
+            }
           }
           @case ('list') {
             @if (workPage.sourceNodeId === 'customer-list') {
@@ -281,6 +362,12 @@
                     <dd>{{ customerProfileFieldValue(customer.meta) }}</dd>
                   </div>
                 </dl>
+                @if (canManageCustomers()) {
+                  <button type="button" class="customer-profile-read__dog-add" (click)="openDogCreateFromCustomerProfile(customer)">
+                    <span class="pi pi-plus-circle" aria-hidden="true"></span>
+                    Hund hinzufügen
+                  </button>
+                }
                 @if (customer.note) {
                   <p class="customer-profile-read__note">{{ customer.note }}</p>
                 }
