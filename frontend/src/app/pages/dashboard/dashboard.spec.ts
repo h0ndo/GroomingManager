@@ -254,7 +254,7 @@ describe('Dashboard', () => {
       )
       .forEach((request) => request.flush([]));
     httpTesting
-      .match((request) => request.url === `${runtimeConfig.apiBaseUrl}/pets` && request.method === 'GET')
+      .match((request) => request.url === `${runtimeConfig.apiBaseUrl}/dogs` && request.method === 'GET')
       .forEach((request) => request.flush([]));
     httpTesting.verify();
   });
@@ -849,9 +849,9 @@ describe('Dashboard', () => {
 
     const request = httpTesting.expectOne(
       (candidate) =>
-        candidate.url === `${runtimeConfig.apiBaseUrl}/pets` &&
-        candidate.params.get('query') === 'testhund' &&
-        candidate.params.get('limit') === '7',
+        candidate.url === `${runtimeConfig.apiBaseUrl}/dogs` &&
+        !candidate.params.has('query') &&
+        candidate.params.get('limit') === '100',
     );
     expect(request.request.method).toBe('GET');
     request.flush([
@@ -905,7 +905,7 @@ describe('Dashboard', () => {
 
     const request = httpTesting.expectOne(
       (candidate) =>
-        candidate.url === `${runtimeConfig.apiBaseUrl}/pets` &&
+        candidate.url === `${runtimeConfig.apiBaseUrl}/dogs` &&
         candidate.params.get('limit') === '100',
     );
     expect(request.request.method).toBe('GET');
@@ -1006,6 +1006,49 @@ describe('Dashboard', () => {
 
     expect(host.querySelector('[role="dialog"]')).toBeNull();
     expect(host.textContent).toContain('Nala gespeichert');
+
+    graphNodeButton(fixture, 'Hunde').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    if (!graphNodeLabels(fixture).includes('Hundeliste')) {
+      graphNodeButton(fixture, 'Hunde').click();
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+    }
+    graphNodeButton(fixture, 'Hundeliste').click();
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const dogListRequest = httpTesting.expectOne(
+      (candidate) =>
+        candidate.url === `${runtimeConfig.apiBaseUrl}/dogs` &&
+        candidate.params.get('limit') === '100',
+    );
+    expect(dogListRequest.request.method).toBe('GET');
+    dogListRequest.flush([
+      {
+        dogId: 12,
+        petId: 12,
+        id: 12,
+        name: 'Nala',
+        dogName: 'Nala',
+        customerId: 8,
+        customerName: 'Mila Muster',
+        customerDisplayName: 'Mila Muster',
+        ownerDisplayName: 'Mila Muster',
+        breed: 'Labradoodle',
+        size: 'mittel',
+        groomingNotes: null,
+        imageBase64: null,
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(host.querySelector('[role="dialog"]')?.textContent).toContain('Nala');
+    expect(host.querySelector('[role="dialog"]')?.textContent).toContain('Mila Muster');
   }));
 
   it('opens the same dog creation flow from a customer profile with the customer preselected', fakeAsync(() => {

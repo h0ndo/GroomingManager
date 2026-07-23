@@ -65,14 +65,19 @@ type CustomerDto = {
 
 type PetDto = {
   id: number;
-  ownerSubject: string;
+  dogId?: number | null;
+  petId?: number | null;
+  ownerSubject?: string | null;
   name: string;
+  dogName?: string | null;
   breed?: string | null;
   size?: string | null;
   groomingNotes?: string | null;
   imageBase64?: string | null;
   customerId?: number | null;
+  customerName?: string | null;
   customerDisplayName?: string | null;
+  ownerDisplayName?: string | null;
 };
 
 type PetFormState = {
@@ -877,9 +882,20 @@ export class Dashboard implements OnInit {
       .subscribe({
         next: (createdPet) => {
           const customer = this.dogSelectedCustomer();
-          const customerLabel = customer ? customerDisplayName(customer) : 'der gewählten Kund:in';
+          const savedDog = this.dogInstanceFromDto({
+            ...createdPet,
+            customerId: createdPet.customerId ?? Number(form.customerId),
+            customerDisplayName:
+              createdPet.customerDisplayName ?? (customer ? customerDisplayName(customer) : null),
+          });
+          const customerLabel = savedDog.customerLabel;
 
-          this.dogCreateStatusMessage.set(`${createdPet.name} wurde für ${customerLabel} gespeichert.`);
+          this.dogCreateStatusMessage.set(`${savedDog.name} wurde für ${customerLabel} gespeichert.`);
+          this.pinDogContextLocally(savedDog);
+          this.dogListItems.update((dogs) => [
+            savedDog,
+            ...dogs.filter((candidate) => candidate.id !== savedDog.id),
+          ]);
           if (customer) {
             this.pinFavoriteCustomerLocally(customer);
             this.selectedCustomer.set(customer);
@@ -894,8 +910,8 @@ export class Dashboard implements OnInit {
           this.workspacePanel.set({
             mode: 'selected',
             eyebrow: 'Hundeprofil',
-            title: `${createdPet.name} gespeichert`,
-            description: `${createdPet.name} wurde über die runde Hunde-Erfassung gespeichert und bleibt über den Kunden-/Hunde-Kontext auffindbar.`,
+            title: `${savedDog.name} gespeichert`,
+            description: `${savedDog.name} wurde persistent für ${customerLabel} gespeichert und ist über die Backend-Hundeliste auffindbar.`,
           });
           this.resetDogForm();
           this.activeWorkPage.set(null);
@@ -1115,8 +1131,8 @@ export class Dashboard implements OnInit {
     this.dogSearchError.set('');
     this.updateActiveWorkPageState({ busy: true, error: '', empty: false });
     this.http
-      .get<PetDto[]>(`${runtimeConfig.apiBaseUrl}/pets`, {
-        params: { query: trimmedSearchTerm, limit: String(this.dogSearchResultLimit + 1) },
+      .get<PetDto[]>(`${runtimeConfig.apiBaseUrl}/dogs`, {
+        params: { limit: String(this.dogListFetchLimit) },
       })
       .subscribe({
         next: (pets) => {
@@ -1148,7 +1164,7 @@ export class Dashboard implements OnInit {
     this.dogListError.set('');
     this.updateActiveWorkPageState({ busy: true, error: '', empty: false });
     this.http
-      .get<PetDto[]>(`${runtimeConfig.apiBaseUrl}/pets`, {
+      .get<PetDto[]>(`${runtimeConfig.apiBaseUrl}/dogs`, {
         params: { limit: String(this.dogListFetchLimit) },
       })
       .subscribe({
@@ -1859,15 +1875,19 @@ export class Dashboard implements OnInit {
   }
 
   private dogInstanceFromDto(pet: PetDto): DogInstance {
+    const dogId = pet.dogId ?? pet.petId ?? pet.id;
+    const dogName = this.blankToUndefined(pet.dogName) ?? this.blankToUndefined(pet.name) ?? 'Hund';
     const customerId = pet.customerId ? String(pet.customerId) : this.customerIdFromOwnerSubject(pet.ownerSubject);
     const customerLabel =
       this.blankToUndefined(pet.customerDisplayName) ??
+      this.blankToUndefined(pet.customerName) ??
+      this.blankToUndefined(pet.ownerDisplayName) ??
       this.customerLabelFromKnownCustomerId(customerId) ??
       (customerId ? `Kund:in #${customerId}` : this.customerLabelFromOwnerSubject(pet.ownerSubject));
 
     return {
-      id: `dog:${pet.id}`,
-      name: this.blankToUndefined(pet.name) ?? 'Hund',
+      id: `dog:${dogId}`,
+      name: dogName,
       customerId,
       customerLabel,
       breed: this.blankToUndefined(pet.breed),
