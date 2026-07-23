@@ -35,6 +35,9 @@ public class DogController {
   }
 
   private Customer customerFor(Pet pet) {
+    if (pet.getCustomer() != null) {
+      return pet.getCustomer();
+    }
     return customerRepository.findByKeycloakSubject(pet.getOwnerSubject()).orElse(null);
   }
 

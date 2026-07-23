@@ -61,6 +61,7 @@ public class PetController {
     Instant now = Instant.now();
     Pet pet = new Pet();
     pet.setOwnerSubject(petOwnerSubjectForCustomer(customer));
+    pet.setCustomer(customer);
     applyRequest(pet, request);
     pet.setCreatedAt(now);
     pet.setUpdatedAt(now);
@@ -106,9 +107,12 @@ public class PetController {
   }
 
   private static PetDto toDto(Pet pet) {
+    Customer customer = pet.getCustomer();
     return new PetDto(
         pet.getId(),
         pet.getOwnerSubject(),
+        customer == null ? null : customer.getId(),
+        customer == null ? null : customer.getDisplayName(),
         pet.getName(),
         pet.getBreed(),
         pet.getSize(),

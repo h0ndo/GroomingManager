@@ -77,7 +77,6 @@ class PetControllerTest {
         .andExpect(jsonPath("$.name").value("Flocke"));
   }
 
-
   @Test
   void managerCanCreatePetForExistingCustomer() throws Exception {
     Customer customer = customer(42L, "kunde-42");
@@ -101,8 +100,37 @@ class PetControllerTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.customerId").value(42))
+        .andExpect(jsonPath("$.customerDisplayName").value("Katja Gross"))
         .andExpect(jsonPath("$.ownerSubject").value("kunde-42"))
         .andExpect(jsonPath("$.name").value("Nala"));
+  }
+
+  @Test
+  void managerCreatePetForMissingCustomerReturnsNotFound() throws Exception {
+    when(customerRepository.findById(99L)).thenReturn(Optional.empty());
+
+    mockMvc
+        .perform(
+            post("/api/customers/99/pets")
+                .with(jwtWithRole("admin-1", "ROLE_admin"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Nala\"}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void managerCreatePetForCustomerRequiresValidName() throws Exception {
+    Customer customer = customer(42L, "kunde-42");
+    when(customerRepository.findById(42L)).thenReturn(Optional.of(customer));
+
+    mockMvc
+        .perform(
+            post("/api/customers/42/pets")
+                .with(jwtWithRole("groomer-1", "ROLE_groomer"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\" \"}"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -135,6 +163,7 @@ class PetControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Bruno\"}"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.customerId").value(43))
         .andExpect(jsonPath("$.ownerSubject").value("customer:43"));
   }
 

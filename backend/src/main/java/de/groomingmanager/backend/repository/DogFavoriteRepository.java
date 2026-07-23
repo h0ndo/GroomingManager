@@ -8,10 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DogFavoriteRepository extends JpaRepository<DogFavorite, Long> {
 
-  @EntityGraph(attributePaths = "pet")
+  @EntityGraph(attributePaths = {"pet", "pet.customer"})
   List<DogFavorite> findByGroomerSubjectOrderByCreatedAtDescIdDesc(String groomerSubject);
 
-  @EntityGraph(attributePaths = "pet")
+  @EntityGraph(attributePaths = {"pet", "pet.customer"})
   Optional<DogFavorite> findByGroomerSubjectAndPetId(String groomerSubject, Long petId);
 
   long countByGroomerSubject(String groomerSubject);

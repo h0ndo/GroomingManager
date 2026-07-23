@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 record PetDto(
     Long id,
     String ownerSubject,
+    Long customerId,
+    String customerDisplayName,
     String name,
     String breed,
     String size,

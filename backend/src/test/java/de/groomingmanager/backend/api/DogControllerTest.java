@@ -36,10 +36,11 @@ class DogControllerTest {
 
   @Test
   void groomerCanListDogsWithCustomerContext() throws Exception {
+    Customer customer = customer(7L, "kunde-1", "Katja Krause");
+    Pet pet = pet(11L, "kunde-1", "Flocke");
+    pet.setCustomer(customer);
     when(petRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100)))
-        .thenReturn(List.of(pet(11L, "kunde-1", "Flocke")));
-    when(customerRepository.findByKeycloakSubject("kunde-1"))
-        .thenReturn(Optional.of(customer(7L, "kunde-1", "Katja Krause")));
+        .thenReturn(List.of(pet));
 
     mockMvc
         .perform(get("/api/dogs?limit=100").with(jwtWithRole("groomer-1", "ROLE_groomer")))
@@ -52,6 +53,20 @@ class DogControllerTest {
         .andExpect(jsonPath("$[0].customerName").value("Katja Krause"));
 
     verify(petRepository).findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100));
+  }
+
+  @Test
+  void dogListFallsBackToLegacyOwnerSubjectCustomerLookup() throws Exception {
+    when(petRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 20)))
+        .thenReturn(List.of(pet(12L, "kunde-2", "Milo")));
+    when(customerRepository.findByKeycloakSubject("kunde-2"))
+        .thenReturn(Optional.of(customer(8L, "kunde-2", "Mara Meier")));
+
+    mockMvc
+        .perform(get("/api/dogs").with(jwtWithRole("admin-1", "ROLE_admin")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].customerId").value(8))
+        .andExpect(jsonPath("$[0].customerDisplayName").value("Mara Meier"));
   }
 
   @Test

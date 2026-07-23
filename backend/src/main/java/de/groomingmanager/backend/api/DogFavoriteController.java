@@ -80,8 +80,10 @@ public class DogFavoriteController {
 
   private DogDto toDto(DogFavorite favorite) {
     Pet pet = favorite.getPet();
-    Customer customer =
-        customerRepository.findByKeycloakSubject(pet.getOwnerSubject()).orElse(null);
+    Customer customer = pet.getCustomer();
+    if (customer == null) {
+      customer = customerRepository.findByKeycloakSubject(pet.getOwnerSubject()).orElse(null);
+    }
     return DogDto.from(pet, customer);
   }
 }
