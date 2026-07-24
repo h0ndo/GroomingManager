@@ -906,7 +906,7 @@ describe('Dashboard', () => {
 
     const host = fixture.nativeElement as HTMLElement;
     const dialog = host.querySelector('[role="dialog"]');
-    const graphHost = host.querySelector('app-workspace-graph');
+    const graphHost = host.querySelector('gmf-workspace-graph');
 
     expect(dialog?.textContent).toContain('Hundesuche');
     expect(host.querySelector<HTMLInputElement>('#workPageDogSearch')).not.toBeNull();
@@ -1328,7 +1328,7 @@ describe('Dashboard', () => {
       customerDto(8, 'Mila Muster', { email: 'mila.muster@example.local' }),
     ]);
 
-    const graphHost = (fixture.nativeElement as HTMLElement).querySelector('app-workspace-graph');
+    const graphHost = (fixture.nativeElement as HTMLElement).querySelector('gmf-workspace-graph');
     const graphLabelsBeforeProfileOpen = graphNodeLabels(fixture);
     const activeGraphLabelBeforeProfileOpen = normalizeText(
       activeGraphNodeButton(fixture)?.textContent,
@@ -1462,7 +1462,7 @@ describe('Dashboard', () => {
     expect(dialog?.getAttribute('aria-modal')).toBe('true');
     expect(
       (fixture.nativeElement as HTMLElement)
-        .querySelector('app-workspace-graph')
+        .querySelector('gmf-workspace-graph')
         ?.getAttribute('inert'),
     ).toBe('');
 
@@ -1475,7 +1475,7 @@ describe('Dashboard', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
     expect(
       (fixture.nativeElement as HTMLElement)
-        .querySelector('app-workspace-graph')
+        .querySelector('gmf-workspace-graph')
         ?.hasAttribute('inert'),
     ).toBeFalse();
     expect(normalizeText(activeGraphNodeButton(fixture)?.textContent)).toBe('Kunden');

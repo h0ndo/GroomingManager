@@ -19,7 +19,7 @@ export default tseslint.config(
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          prefix: ['app', 'gmf'],
           style: 'kebab-case',
         },
       ],
@@ -27,7 +27,7 @@ export default tseslint.config(
         'error',
         {
           type: 'attribute',
-          prefix: 'app',
+          prefix: ['app', 'gmf'],
           style: 'camelCase',
         },
       ],

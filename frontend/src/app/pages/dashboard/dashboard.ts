@@ -19,7 +19,7 @@ import {
   WorkspaceGraphEdge,
   WorkspaceGraphNode,
   WorkspaceGraphSelection,
-} from '../../shared/workspace-graph/workspace-graph';
+} from 'framework';
 import {
   buildDashboardGraphEdges,
   buildDashboardGraphNodes,

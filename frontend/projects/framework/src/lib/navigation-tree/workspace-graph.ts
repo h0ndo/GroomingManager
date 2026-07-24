@@ -73,7 +73,7 @@ type Point = {
 };
 
 @Component({
-  selector: 'app-workspace-graph',
+  selector: 'gmf-workspace-graph',
   imports: [NgClass],
   templateUrl: './workspace-graph.html',
   styleUrl: './workspace-graph.scss',

@@ -45,7 +45,7 @@
   </header>
 
   <div class="workspace-shell">
-    <app-workspace-graph
+    <gmf-workspace-graph
       [nodes]="presentedGraphNodes()"
       [edges]="presentedGraphEdges()"
       [activeNodeId]="presentedActiveNodeId()"
@@ -58,7 +58,7 @@
       [attr.aria-hidden]="hasActiveWorkPage() ? 'true' : null"
       [interactionLocked]="graphInteractionLocked()"
       (nodeActivated)="handleGraphSelection($event)"
-    ></app-workspace-graph>
+    ></gmf-workspace-graph>
 
     @if (activeWorkPage(); as workPage) {
       <app-circular-work-page
@@ -584,7 +584,7 @@
     </header>
 
     <div class="graph-sandbox__body">
-      <app-workspace-graph
+      <gmf-workspace-graph
         [nodes]="graphSandboxNodes()"
         [edges]="graphSandboxEdges()"
         [activeNodeId]="graphSandboxActiveNodeId()"
@@ -594,7 +594,7 @@
         [expandedNodeIds]="graphSandboxExpandedNodeIds()"
         [expandableNodeIds]="graphSandboxExpandableNodeIds"
         (nodeActivated)="handleGraphSandboxSelection($event)"
-      ></app-workspace-graph>
+      ></gmf-workspace-graph>
 
       <aside class="graph-sandbox__panel" aria-live="polite">
         <strong>Ausgewählter Testknoten</strong>

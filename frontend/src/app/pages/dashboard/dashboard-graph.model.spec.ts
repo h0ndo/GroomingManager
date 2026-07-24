@@ -10,7 +10,7 @@ import {
   type CustomerInstance,
   type DogInstance,
 } from './dashboard-graph.model';
-import { computeRadialGraphLayout } from '../../shared/workspace-graph/core/radial-graph-layout';
+import { computeRadialGraphLayout } from 'framework';
 
 const favoriteCustomers: CustomerInstance[] = [
   {

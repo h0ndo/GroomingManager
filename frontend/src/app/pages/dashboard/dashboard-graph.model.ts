@@ -1,7 +1,7 @@
 import {
   WorkspaceGraphEdge,
   WorkspaceGraphNode,
-} from '../../shared/workspace-graph/workspace-graph';
+} from 'framework';
 
 export type DashboardGraphRole = 'admin' | 'groomer' | 'kunde' | 'unknown';
 
